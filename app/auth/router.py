@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+import logging
+
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -13,6 +15,8 @@ from app.config import settings
 import app.auth.service as svc
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+logger = logging.getLogger("noteflow.auth")
+
 
 
 def _user_response(user: User) -> dict:
@@ -54,7 +58,16 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     user = await svc.get_user_by_username_or_email(db, data.username)
-    if not user or not user.hashed_pw or not svc.verify_password(data.password, user.hashed_pw):
+    if not user:
+        print(f"DEBUG LOGIN: User not found for identifier: {data.username}")
+        raise HTTPException(401, "Invalid credentials")
+    
+    if not user.hashed_pw:
+        print(f"DEBUG LOGIN: User {user.username} has no hashed_pw")
+        raise HTTPException(401, "Invalid credentials")
+
+    if not svc.verify_password(data.password, user.hashed_pw):
+        print(f"DEBUG LOGIN: Password verification failed for user {user.username}")
         raise HTTPException(401, "Invalid credentials")
     if user.totp_enabled:
         if not data.totp_code:
