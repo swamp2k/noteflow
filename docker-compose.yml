@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  noteflow:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8100:8000"
+    volumes:
+      - ./data:/data
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/noteflow.db
+      UPLOAD_DIR: /data/attachments
