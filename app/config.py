@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     BASE_URL: str = "http://localhost:8000"
     DATABASE_URL: str = "sqlite+aiosqlite:////data/noteflow.db"
     UPLOAD_DIR: str = "/data/attachments"
-    ANTHROPIC_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     SESSION_EXPIRE_SECONDS: int = 604800

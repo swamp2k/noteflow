@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   noteflow:
+    container_name: noteflow
     build: .
     restart: unless-stopped
     ports:
