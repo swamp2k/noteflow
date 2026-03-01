@@ -18,7 +18,6 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = logging.getLogger("noteflow.auth")
 
 
-
 def _user_response(user: User) -> dict:
     return {
         "id": user.id,
@@ -75,10 +74,18 @@ async def login(
         if not svc.verify_totp(user.totp_secret, data.totp_code):
             raise HTTPException(401, "Invalid 2FA code")
     token = await svc.create_session(db, user.id, request.headers.get("user-agent"))
-    secure = settings.BASE_URL.startswith("https")
+    
+    # If BASE_URL is https, we normally want secure=True.
+    # But if we access via local IP on http, the browser will block the cookie.
+    is_secure_url = settings.BASE_URL.startswith("https")
+    request_is_secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    cookie_secure = is_secure_url and request_is_secure
+
+    print(f"DEBUG SESSION: Setting cookie. BASE_URL_is_https={is_secure_url}, Request_is_https={request_is_secure} -> cookie_secure={cookie_secure}")
+
     response.set_cookie(
         "session_token", token, httponly=True, samesite="lax",
-        max_age=settings.SESSION_EXPIRE_SECONDS, secure=secure,
+        max_age=settings.SESSION_EXPIRE_SECONDS, secure=cookie_secure,
     )
     return _user_response(user)
 
@@ -171,10 +178,14 @@ async def google_callback(
             await db.refresh(user)
 
     token = await svc.create_session(db, user.id, request.headers.get("user-agent"))
-    secure = settings.BASE_URL.startswith("https")
+    
+    is_secure_url = settings.BASE_URL.startswith("https")
+    request_is_secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    cookie_secure = is_secure_url and request_is_secure
+
     response.set_cookie(
         "session_token", token, httponly=True, samesite="lax",
-        max_age=settings.SESSION_EXPIRE_SECONDS, secure=secure,
+        max_age=settings.SESSION_EXPIRE_SECONDS, secure=cookie_secure,
     )
     return RedirectResponse("/")
 
