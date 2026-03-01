@@ -87,7 +87,7 @@
   .toolbar-btn:hover{background:var(--border-light);color:var(--text);}
   .toolbar-sep{width:1px;height:18px;background:var(--border);margin:0 3px;flex-shrink:0;}
   .composer-body{padding:14px 16px;}
-  .composer-input{width:100%;border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.65;color:var(--text);background:transparent;min-height:68px;caret-color:var(--accent);cursor:text;}
+  .composer-input{width:100%;border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.65;color:var(--text);background:transparent;min-height:48px;caret-color:var(--accent);cursor:text;}
   .composer-input:empty::before{content:attr(data-placeholder);color:var(--text-dim);pointer-events:none;display:block;}
   .composer-input h1,.composer-input h2,.composer-input h3{font-family:'Fraunces',serif;font-weight:300;margin:8px 0 3px;line-height:1.3;}
   .composer-input h1{font-size:20px;}.composer-input h2{font-size:17px;}.composer-input h3{font-size:15px;}
@@ -138,7 +138,7 @@
   .note-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
   .tag{font-size:12px;background:var(--tag-bg);color:var(--tag-text);padding:3px 10px;border-radius:20px;cursor:pointer;transition:background 0.15s;}
   .tag:hover{background:var(--accent-light);}
-  .note-footer{display:flex;justify-content:flex-end;}
+  .note-footer{display:flex;justify-content:flex-end;margin-top:0px;}
   .note-actions{display:flex;gap:3px;opacity:0;transition:opacity 0.15s;}
   .note-card:hover .note-actions{opacity:1;}
   @media(hover:none){.note-actions{opacity:1;}}
@@ -185,7 +185,7 @@
   }
 
   /* ── GRAPH VIEW ── */
-  #graph-view{position:fixed;inset:0;z-index:150;background:#0d0f12;color:#e8e4dc;}
+  #graph-view{position:fixed;inset:0;z-index:250;background:#0d0f12;color:#e8e4dc;}
   #gv-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;}
   #gv-canvas:active{cursor:grabbing;}
   .gv-topbar{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:linear-gradient(to bottom,rgba(13,15,18,0.98),rgba(13,15,18,0.85));border-bottom:1px solid #252b35;backdrop-filter:blur(8px);z-index:10;}
@@ -231,6 +231,14 @@
   .gv-link.gv-strong{stroke:rgba(74,158,114,0.25);stroke-width:1.5;}
   .gv-link.gv-highlighted{stroke:#4a9e72;stroke-opacity:0.6;stroke-width:2;}
   @media(max-width:640px){.gv-detail-panel{right:10px;width:calc(100vw - 20px);top:auto;bottom:38px;max-height:45vh;transform:translateY(110%);border-radius:12px;}.gv-detail-panel.open{transform:translateY(0);}.gv-legend{display:none;}}
+
+  /* Expand/Collapse Long Notes */
+  .note-content-wrapper { position: relative; max-height: var(--note-max-height, 1000px); overflow: hidden; transition: max-height 0.3s; margin-bottom: 6px; }
+  .note-content-wrapper.expanded { max-height: none; }
+  .note-expand-overlay { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(transparent, var(--bg-card)); display: flex; align-items: flex-end; justify-content: center; cursor: pointer; padding-bottom: 4px; pointer-events: auto; }
+  .expanded .note-expand-overlay { display: none; }
+  .note-expand-btn { background: var(--border-light); color: var(--text-muted); padding: 4px 12px; border-radius: 14px; font-size: 11px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; pointer-events: auto; }
+  .note-expand-btn:hover { background: var(--border); }
 </style>
 </head>
 <body>
@@ -307,6 +315,10 @@
     <div class="drawer-section">
       <div class="section-label">Account</div>
       <div id="drawer-user-info" style="font-size:13px;color:var(--text-muted);margin-bottom:10px;padding:0 4px;"></div>
+      <div style="margin-bottom:14px;padding:0 4px;">
+        <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">Max Note Length (px)</label>
+        <input type="number" id="drawer-max-height" value="1000" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;" onchange="setMaxHeight(this.value)">
+      </div>
       <button class="btn-sm" onclick="showTotpModal()">🔐 2FA Settings</button>
       <button class="logout-btn" onclick="doLogout()">Sign out</button>
     </div>
@@ -484,6 +496,17 @@
 let currentUser=null, stagedFiles=[], searchTimer=null;
 let currentFilter={type:'all',tag:null}, archiveLoaded=false;
 
+// Max Length Boot
+const storedMaxH = localStorage.getItem('noteMaxHeight') || 1000;
+document.documentElement.style.setProperty('--note-max-height', storedMaxH + 'px');
+
+function setMaxHeight(val){
+  const mh = Math.max(100, parseInt(val)||1000);
+  localStorage.setItem('noteMaxHeight', mh);
+  document.documentElement.style.setProperty('--note-max-height', mh + 'px');
+  evaluateMaxHeight();
+}
+
 marked.use({breaks:true});
 const tdService=new TurndownService({headingStyle:'atx',codeBlockStyle:'fenced',bulletListMarker:'-'});
 
@@ -569,8 +592,10 @@ async function loadNotes(){
   if(currentFilter.tag)p.set('tag',currentFilter.tag);
   try{
     const d=await api('GET',`/api/notes?${p}`);
+    currentNotes = d.notes; // cache for editing
     renderFeed(d.notes,feed);
     document.getElementById('feedCount').textContent=d.total+' notes';
+
     document.getElementById('stat-notes').textContent=d.total;
     loadArchiveCount();
   }catch(e){ feed.innerHTML=`<div class="loading-spinner">Error: ${esc(e.message)}</div>`; }
@@ -627,8 +652,10 @@ function buildCard(note,isArchive){
       <span class="note-time">${isArchive?'Originally: ':''} ${fmtDate(displayDate)}</span>
       ${note.ai_tags&&note.ai_tags.length?'<span class="ai-badge">✦ AI tagged</span>':''}
     </div>
-    <div class="note-body">${DOMPurify.sanitize(marked.parse(note.content))}</div>
-    ${attachHtml}
+    <div class="note-content-wrapper" ondblclick="editNote(${note.id})">
+      <div class="note-body" id="note-body-${note.id}">${DOMPurify.sanitize(marked.parse(note.content))}</div>
+      ${attachHtml}
+    </div>
     ${tagsHtml?`<div class="note-tags">${tagsHtml}</div>`:''}
     <div class="note-footer">
       <div class="note-actions">
@@ -636,10 +663,37 @@ function buildCard(note,isArchive){
         <button class="note-action-btn" onclick="deleteNote(${note.id},this.closest('.note-card'))" style="color:var(--danger)">✕</button>
       </div>
     </div>`;
+  
+  // After returning the div, Javascript needs to evaluate height to add expander
   return div;
 }
 
+function evaluateMaxHeight(){
+  const maxH = parseInt(localStorage.getItem('noteMaxHeight')) || 1000;
+  document.querySelectorAll('.note-content-wrapper').forEach(w => {
+    // threshold slightly higher than maxH to avoid creating tiny expanders
+    if(w.scrollHeight > maxH + 40 && !w.classList.contains('expanded')){
+      if(!w.querySelector('.note-expand-overlay')){
+        const ov = document.createElement('div');
+        ov.className = 'note-expand-overlay';
+        ov.onclick = (e) => { e.stopPropagation(); w.classList.add('expanded'); };
+        ov.innerHTML = '<div class="note-expand-btn">... show more</div>';
+        w.appendChild(ov);
+      }
+    } else {
+      const ov = w.querySelector('.note-expand-overlay');
+      if(ov) ov.remove();
+    }
+  });
+}
+
+// Ensure evaluate runs after DOM is painted
+const mo = new MutationObserver(()=>setTimeout(evaluateMaxHeight,50));
+mo.observe(document.getElementById('feed'),{childList:true,subtree:true});
+
 async function saveNote(){
+  if(editingNoteId) return submitEditNote();
+
   const inp=document.getElementById('mainInput');
   if(!inp.textContent.trim())return;
   const content=tdService.turndown(inp.innerHTML).trim();
@@ -694,6 +748,53 @@ async function deleteNote(id,card){
     card.style.opacity='0'; card.style.transition='opacity 0.2s';
     setTimeout(()=>card.remove(),200); toast('Deleted');
   }catch(e){ toast(e.message,true); }
+}
+
+let editingNoteId = null;
+let currentNotes = []; // To grab raw markdown easily
+
+function editNote(id) {
+  const note = currentNotes.find(n => n.id === id) || (gvNotes||[]).find(n => n.id === id);
+  if(!note) return;
+  editingNoteId = id;
+  const inp = document.getElementById('mainInput');
+  inp.innerHTML = marked.parse(note.content); // Simplified, ideally we'd implement a real rich editor sync here but Turndown will reverse it on save.
+  const btn = document.getElementById('saveBtn');
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><path d="M2 13.5A2.5 2.5 0 004.5 16h7a2.5 2.5 0 002.5-2.5v-7A2.5 2.5 0 0011.5 4h-7A2.5 2.5 0 002 6.5v7zM4.5 5.5h7a1 1 0 011 1v7a1 1 0 01-1 1h-7a1 1 0 01-1-1v-7a1 1 0 011-1z"/></svg> Update`;
+  btn.style.background = 'var(--accent-warm)';
+  
+  if(document.getElementById('drawer').classList.contains('open')) closeDrawer();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  inp.focus();
+}
+
+async function submitEditNote() {
+  const inp=document.getElementById('mainInput');
+  if(!inp.textContent.trim())return;
+  const content=tdService.turndown(inp.innerHTML).trim();
+  if(!content)return;
+  
+  const btn=document.getElementById('saveBtn');
+  btn.disabled=true; btn.textContent='Updating…';
+  try{
+    const r=await fetch(`/api/notes/${editingNoteId}`, {
+        method:'PATCH', 
+        headers: {'Content-Type': 'application/json'},
+        credentials:'include',
+        body: JSON.stringify({content})
+    });
+    if(!r.ok){const e=await r.json();throw new Error(e.detail||'Update failed');}
+    
+    inp.innerHTML='';
+    editingNoteId = null;
+    toast('Updated ✓'); 
+    loadNotes(); loadTags(); // Refresh feed
+  }catch(e){ toast(e.message,true); }
+  finally{
+    btn.disabled=false;
+    btn.style.background = 'var(--accent)';
+    btn.innerHTML='<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><path d="M2 8h12M10 4l4 4-4 4"/></svg> Save';
+  }
 }
 
 async function loadTags(){
