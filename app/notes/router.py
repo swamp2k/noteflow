@@ -40,6 +40,8 @@ def _note_response(note: Note) -> dict:
         "original_date": note.original_date,
         "ai_tags": note.ai_tags or [],
         "is_starred": note.is_starred,
+        "is_public": note.is_public,
+        "public_id": note.public_id,
         "created_at": note.created_at,
         "updated_at": note.updated_at,
         "attachments": [_att_response(a) for a in note.attachments],
@@ -229,6 +231,11 @@ async def patch_note(
         note.search_text = data.content
     if data.is_starred is not None:
         note.is_starred = data.is_starred
+    if data.is_public is not None:
+        note.is_public = data.is_public
+        if data.is_public and not note.public_id:
+            import secrets
+            note.public_id = secrets.token_urlsafe(8)
 
     await db.commit()
     await db.refresh(note)
@@ -282,5 +289,47 @@ async def get_attachment_file(
     path = os.path.join(settings.UPLOAD_DIR, att.stored_name)
     if not os.path.exists(path):
         raise HTTPException(404, "File not found on disk")
+
+    return FileResponse(path, media_type=att.mime_type, filename=att.filename)
+
+
+@router.get("/shared/{public_id}")
+async def get_shared_note(
+    public_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Note)
+        .where(Note.public_id == public_id, Note.is_public == True)
+        .options(selectinload(Note.attachments))
+    )
+    note = result.scalar_one_or_none()
+    if not note:
+        raise HTTPException(404, "Note not found or not public")
+    return _note_response(note)
+
+
+@router.get("/shared/{public_id}/attachments/{att_id}/file")
+async def get_shared_attachment_file(
+    public_id: str,
+    att_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Attachment)
+        .join(Note)
+        .where(
+            Attachment.id == att_id,
+            Note.public_id == public_id,
+            Note.is_public == True,
+        )
+    )
+    att = result.scalar_one_or_none()
+    if not att:
+        raise HTTPException(404, "Attachment not found")
+
+    path = os.path.join(settings.UPLOAD_DIR, att.stored_name)
+    if not os.path.exists(path):
+        raise HTTPException(404, "File not found")
 
     return FileResponse(path, media_type=att.mime_type, filename=att.filename)

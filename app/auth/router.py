@@ -9,7 +9,7 @@ import httpx
 
 from app.database import get_db
 from app.models import User
-from app.schemas import UserRegister, UserLogin, TotpEnableRequest
+from app.schemas import UserRegister, UserLogin, TotpEnableRequest, UserSettingsPatch
 from app.dependencies import get_current_user
 from app.config import settings
 import app.auth.service as svc
@@ -25,6 +25,7 @@ def _user_response(user: User) -> dict:
         "email": user.email,
         "totp_enabled": user.totp_enabled,
         "google_linked": bool(user.google_id),
+        "settings": user.settings or {},
         "created_at": user.created_at,
     }
 
@@ -102,6 +103,35 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)):
     return _user_response(user)
+
+
+@router.patch("/me/settings")
+async def update_settings(
+    data: UserSettingsPatch,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user.settings = data.settings
+    await db.commit()
+    return _user_response(user)
+
+
+@router.get("/ai-test")
+async def test_ai_connection(user: User = Depends(get_current_user)):
+    if not settings.GEMINI_API_KEY:
+        raise HTTPException(400, "Gemini API Key not configured")
+    try:
+        from google import genai
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents="Say hi"
+        )
+        if response.text:
+            return {"ok": True, "message": "Connection OK"}
+        raise Exception("Empty response")
+    except Exception as e:
+        raise HTTPException(400, f"AI connection failed: {str(e)}")
 
 
 @router.get("/google-enabled")

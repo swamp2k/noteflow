@@ -16,6 +16,7 @@ class User(Base):
     totp_secret = Column(String, nullable=True)
     totp_enabled = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    settings = Column(JSON, default=dict)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
@@ -45,6 +46,8 @@ class Note(Base):
     ai_tags = Column(JSON, default=list)
     search_text = Column(Text, nullable=True)
     is_starred = Column(Boolean, default=False)
+    is_public = Column(Boolean, default=False)
+    public_id = Column(String, unique=True, index=True, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

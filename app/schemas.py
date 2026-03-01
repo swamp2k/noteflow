@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
@@ -21,7 +21,12 @@ class UserResponse(BaseModel):
     email: str
     totp_enabled: bool
     google_linked: bool
+    settings: Dict[str, Any]
     created_at: datetime
+
+
+class UserSettingsPatch(BaseModel):
+    settings: Dict[str, Any]
 
 
 class AttachmentResponse(BaseModel):
@@ -39,6 +44,8 @@ class NoteResponse(BaseModel):
     original_date: Optional[datetime]
     ai_tags: List[str]
     is_starred: bool
+    is_public: bool
+    public_id: Optional[str]
     created_at: datetime
     updated_at: datetime
     attachments: List[AttachmentResponse]
@@ -54,6 +61,7 @@ class NotesListResponse(BaseModel):
 class NotePatch(BaseModel):
     content: Optional[str] = None
     is_starred: Optional[bool] = None
+    is_public: Optional[bool] = None
 
 
 class TotpSetupResponse(BaseModel):
