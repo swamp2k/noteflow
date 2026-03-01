@@ -10,15 +10,20 @@ from app.models import Session, User
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
     token = request.cookies.get("session_token")
     if not token:
+        print("DEBUG SESSION: No session_token cookie found in request")
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    print(f"DEBUG SESSION: Found token in cookie: {token[:10]}...")
 
     result = await db.execute(select(Session).where(Session.id == token))
     session = result.scalar_one_or_none()
 
     if not session:
+        print(f"DEBUG SESSION: Session not found in database for token: {token[:10]}...")
         raise HTTPException(status_code=401, detail="Invalid session")
 
     if session.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        print(f"DEBUG SESSION: Session expired at {session.expires_at}")
         await db.delete(session)
         await db.commit()
         raise HTTPException(status_code=401, detail="Session expired")
