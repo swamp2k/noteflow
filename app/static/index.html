@@ -14,29 +14,163 @@
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
   <style>
-    :root {
-      --bg: #f5f2ec;
-      --bg-card: #faf8f4;
-      --bg-input: #ffffff;
-      --border: #e0dbd0;
-      --border-light: #ece8e0;
-      --text: #1a1814;
-      --text-muted: #7a7468;
-      --text-dim: #b0aa9f;
-      --accent: #2d6a4f;
-      --accent-light: #e8f4ef;
-      --accent-warm: #c17f24;
-      --accent-warm-light: #fdf3e3;
-      --tag-bg: #eef5f1;
-      --tag-text: #2d6a4f;
-      --archive-bg: #f0ede8;
-      --archive-border: #d4cfc6;
-      --danger: #c0392b;
-      --danger-light: #fdf0ee;
-      --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-      --radius: 10px;
-      --header-h: 52px;
+    --bg: #f5f2ec;
+    --bg-card: #faf8f4;
+    --bg-input: #ffffff;
+    --border: #e0dbd0;
+    --border-light: #ece8e0;
+    --text: #1a1814;
+    --text-muted: #7a7468;
+    --text-dim: #b0aa9f;
+    --accent: #2d6a4f;
+    --accent-light: #e8f4ef;
+    --accent-warm: #c17f24;
+    --accent-warm-light: #fdf3e3;
+    --tag-bg: #eef5f1;
+    --tag-text: #2d6a4f;
+    --archive-bg: #f0ede8;
+    --archive-border: #d4cfc6;
+    --danger: #c0392b;
+    --danger-light: #fdf0ee;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.04);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --radius: 10px;
+    --header-h: 52px;
+    }
+
+    /* THEMES */
+    [data-theme="dark"] {
+      --bg: #121212;
+      --bg-card: #1e1e1e;
+      --bg-input: #2a2a2a;
+      --border: #333;
+      --border-light: #444;
+      --text: #e0e0e0;
+      --text-muted: #a0a0a0;
+      --text-dim: #666;
+      --accent: #4ade80;
+      --accent-light: #143321;
+      --accent-warm: #fbbf24;
+      --accent-warm-light: #4d3a0c;
+      --tag-bg: #143321;
+      --tag-text: #4ade80;
+      --archive-bg: #222;
+      --archive-border: #444;
+    }
+
+    [data-theme="dracula"] {
+      --bg: #282a36;
+      --bg-card: #383a59;
+      --bg-input: #44475a;
+      --border: #6272a4;
+      --border-light: #44475a;
+      --text: #f8f8f2;
+      --text-muted: #bfbfbf;
+      --text-dim: #6272a4;
+      --accent: #bd93f9;
+      --accent-light: #44475a;
+      --accent-warm: #ffb86c;
+      --accent-warm-light: #4a3424;
+      --tag-bg: #44475a;
+      --tag-text: #50fa7b;
+      --archive-bg: #282a36;
+      --archive-border: #6272a4;
+    }
+
+    [data-theme="solarized-light"] {
+      --bg: #fdf6e3;
+      --bg-card: #eee8d5;
+      --bg-input: #fdf6e3;
+      --border: #93a1a1;
+      --border-light: #d33682;
+      --text: #657b83;
+      --text-muted: #586e75;
+      --text-dim: #93a1a1;
+      --accent: #2aa198;
+      --accent-light: #e0f2f1;
+      --accent-warm: #cb4b16;
+      --accent-warm-light: #fef1ec;
+      --tag-bg: #e0f2f1;
+      --tag-text: #2aa198;
+      --archive-bg: #eee8d5;
+      --archive-border: #93a1a1;
+    }
+
+    [data-theme="solarized-dark"] {
+      --bg: #002b36;
+      --bg-card: #073642;
+      --bg-input: #002b36;
+      --border: #586e75;
+      --border-light: #657b83;
+      --text: #839496;
+      --text-muted: #93a1a1;
+      --text-dim: #586e75;
+      --accent: #2aa198;
+      --accent-light: #002b36;
+      --accent-warm: #cb4b16;
+      --accent-warm-light: #073642;
+      --tag-bg: #002b36;
+      --tag-text: #2aa198;
+      --archive-bg: #073642;
+      --archive-border: #586e75;
+    }
+
+    [data-theme="sepia"] {
+      --bg: #f4ecd8;
+      --bg-card: #e8dfc8;
+      --bg-input: #f4ecd8;
+      --border: #c8bda3;
+      --border-light: #d9d0b8;
+      --text: #433422;
+      --text-muted: #725b3e;
+      --text-dim: #99805e;
+      --accent: #d35400;
+      --accent-light: #fcf1e8;
+      --accent-warm: #c0392b;
+      --accent-warm-light: #fdf0ee;
+      --tag-bg: #fcf1e8;
+      --tag-text: #d35400;
+      --archive-bg: #e8dfc8;
+      --archive-border: #c8bda3;
+    }
+
+    [data-theme="nord"] {
+      --bg: #2e3440;
+      --bg-card: #3b4252;
+      --bg-input: #434c5e;
+      --border: #4c566a;
+      --border-light: #434c5e;
+      --text: #eceff4;
+      --text-muted: #e5e9f0;
+      --text-dim: #d8dee9;
+      --accent: #88c0d0;
+      --accent-light: #434c5e;
+      --accent-warm: #ebcb8b;
+      --accent-warm-light: #4c566a;
+      --tag-bg: #434c5e;
+      --tag-text: #8fbcbb;
+      --archive-bg: #2e3440;
+      --archive-border: #4c566a;
+    }
+
+    [data-theme="monokai"] {
+      --bg: #272822;
+      --bg-card: #3e3d32;
+      --bg-input: #49483e;
+      --border: #75715e;
+      --border-light: #49483e;
+      --text: #f8f8f2;
+      --text-muted: #cfcfc2;
+      --text-dim: #75715e;
+      --accent: #a6e22e;
+      --accent-light: #49483e;
+      --accent-warm: #fd971f;
+      --accent-warm-light: #75715e;
+      --tag-bg: #49483e;
+      --tag-text: #e6db74;
+      --archive-bg: #272822;
+      --archive-border: #75715e;
     }
 
     * {
@@ -1710,6 +1844,103 @@
       display: flex;
       gap: 8px;
       justify-content: flex-end;
+      align-items: center;
+    }
+
+    /* Settings Page */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .settings-group {
+      margin-bottom: 20px;
+    }
+
+    .settings-group h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .settings-select {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .toggle-wrap span {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: var(--accent);
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(20px);
+    }
+
+    .img-preview-hidden img.note-image {
+      display: none !important;
     }
   </style>
 </head>
@@ -1813,7 +2044,7 @@
             style="width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;"
             onchange="setMaxHeight(this.value)">
         </div>
-        <button class="btn-sm" onclick="showTotpModal()">🔐 2FA Settings</button>
+        <button class="btn-sm" onclick="showSettingsModal()">⚙️ Settings</button>
         <button class="logout-btn" onclick="doLogout()">Sign out</button>
       </div>
     </div>
@@ -2086,8 +2317,10 @@
       currentUser = user;
       document.getElementById('auth-page').style.display = 'none';
       document.getElementById('app-page').style.display = 'block';
-      document.getElementById('right-user').textContent = `${user.username}`;
+      const rightUser = document.getElementById('right-user');
+      if (rightUser) rightUser.textContent = `${user.username}`;
       document.getElementById('drawer-user-info').textContent = `${user.username} · ${user.email}`;
+      applySettings(user.settings);
       loadNotes(); loadTags();
     }
 
@@ -2203,6 +2436,7 @@
     ${tagsHtml ? `<div class="note-tags">${tagsHtml}</div>` : ''}
     <div class="note-footer">
       <div class="note-actions">
+        <button class="note-action-btn" onclick="shareNote(${note.id})" title="Share Note">🔗 Share</button>
         <button class="note-action-btn${starred ? ' starred' : ''}" onclick="toggleStar(${note.id},this)" title="${starred ? 'Unstar' : 'Star'}">${starred ? '★' : '☆'}</button>
         <button class="note-action-btn" onclick="deleteNote(${note.id},this.closest('.note-card'))" style="color:var(--danger)">✕</button>
       </div>
@@ -2301,23 +2535,30 @@
       const wrapper = document.getElementById(`note-wrapper-${id}`);
       if (!wrapper || wrapper.querySelector('.inline-editor')) return; // Already editing
 
-      // Save original HTML to restore if cancelled
       const originalHTML = wrapper.innerHTML;
 
-      // Expand completely and remove double click listener temporarily
       wrapper.classList.add('expanded');
       wrapper.removeAttribute('ondblclick');
 
       wrapper.innerHTML = `
     <textarea id="inline-edit-${id}" class="inline-editor"></textarea>
-    <div class="inline-editor-actions">
-      <button class="note-action-btn" onclick="cancelInlineEdit(${id}, \`${btoa(encodeURIComponent(originalHTML))}\`)">Cancel</button>
-      <button class="btn-sm" id="inline-save-btn-${id}" onclick="submitInlineEdit(${id})">Save Changes</button>
-    </div>
-  `;
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="composer-toolbar" style="border:none; padding:0;">
+        <button class="toolbar-btn" title="Bold (**)" onclick="insertInline(${id}, '**', '**')"><b>B</b></button>
+        <button class="toolbar-btn" title="Italic (*)" onclick="insertInline(${id}, '_', '_')"><em>I</em></button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" title="Code" onclick="insertCode(${id})">&lt;/&gt;</button>
+        <button class="toolbar-btn" title="List (-)" onclick="insertInline(${id}, '- ', '')">≡</button >
+      </div >
+        <div class="inline-editor-actions">
+          <button class="note-action-btn" onclick="cancelInlineEdit(${id}, \`${btoa(encodeURIComponent(originalHTML))}\`)">Cancel</button>
+          <button class="btn-sm" id="inline-save-btn-${id}" onclick="submitInlineEdit(${id})">Save</button>
+        </div>
+    </div >
+        `;
 
-      const ta = document.getElementById(`inline-edit-${id}`);
-      ta.value = note.content; // Use raw markdown
+      const ta = document.getElementById(`inline - edit - ${id} `);
+      ta.value = note.content;
       ta.focus();
 
       // Auto-resize
@@ -2329,8 +2570,28 @@
       });
     }
 
+    function insertCode(id) {
+      insertInline(id, '\\n\\n```\\n', '\\n```\\n\\n');
+    }
+
+    function insertInline(id, pre, post) {
+      const ta = document.getElementById(`inline - edit - ${id} `);
+      if (!ta) return;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const sel = ta.value.substring(start, end);
+      const rep = pre + sel + post;
+      ta.value = ta.value.substring(0, start) + rep + ta.value.substring(end);
+      ta.focus();
+      ta.selectionStart = start + pre.length;
+      ta.selectionEnd = start + pre.length + sel.length;
+
+      ta.style.height = 'auto';
+      ta.style.height = (ta.scrollHeight + 5) + 'px';
+    }
+
     function cancelInlineEdit(id, b64Html) {
-      const wrapper = document.getElementById(`note-wrapper-${id}`);
+      const wrapper = document.getElementById(`note - wrapper - ${id} `);
       if (!wrapper) return;
       wrapper.innerHTML = decodeURIComponent(atob(b64Html));
       wrapper.setAttribute('ondblclick', `startInlineEdit(${id})`);
@@ -2338,16 +2599,16 @@
     }
 
     async function submitInlineEdit(id) {
-      const ta = document.getElementById(`inline-edit-${id}`);
+      const ta = document.getElementById(`inline - edit - ${id} `);
       if (!ta) return;
       const content = ta.value.trim();
       if (!content) return;
 
-      const btn = document.getElementById(`inline-save-btn-${id}`);
+      const btn = document.getElementById(`inline - save - btn - ${id} `);
       btn.disabled = true; btn.textContent = 'Saving…';
 
       try {
-        const r = await fetch(`/api/notes/${id}`, {
+        const r = await fetch(`/ api / notes / ${id} `, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -2363,7 +2624,7 @@
         if (idx !== -1) currentNotes[idx] = updatedNote;
 
         // Find the enclosing card and replace it with a newly built card
-        const oldCard = document.querySelector(`.note-card[data-id="${id}"]`);
+        const oldCard = document.querySelector(`.note - card[data - id="${id}"]`);
         if (oldCard) {
           const newCard = buildCard(updatedNote, oldCard.classList.contains('archive-note'));
           oldCard.replaceWith(newCard);
@@ -2386,7 +2647,7 @@
           container.innerHTML = '';
           const all = document.createElement('div');
           all.className = 'tag-chip-side' + (!currentFilter.tag ? ' active' : '');
-          all.innerHTML = `# all <span class="tag-count">${d.total}</span>`;
+          all.innerHTML = `# all < span class="tag-count" > ${d.total}</span > `;
           all.onclick = () => setFilter('all');
           container.appendChild(all);
           sorted.slice(0, 12).forEach(([tag, count]) => {
@@ -2400,7 +2661,7 @@
         render(document.getElementById('sidebar-tags'));
         render(document.getElementById('drawer-tags'));
         document.getElementById('right-tags').innerHTML = sorted.slice(0, 10).map(([t, c]) =>
-          `<span class="tag${c > 3 ? ' lg' : c < 2 ? ' sm' : ''}" onclick="setFilter('tag','${esc(t)}')">#${esc(t)}</span>`
+          `< span class="tag${c > 3 ? ' lg' : c < 2 ? ' sm' : ''}" onclick = "setFilter('tag','${esc(t)}')" > #${esc(t)}</span > `
         ).join('');
       } catch { }
     }
@@ -2410,7 +2671,7 @@
       document.getElementById('nav-all').classList.toggle('active', type === 'all' && !tag);
       document.getElementById('nav-starred').classList.toggle('active', type === 'starred');
       document.getElementById('nav-graph').classList.remove('active');
-      document.getElementById('feedTitle').textContent = tag ? `#${tag}` : type === 'starred' ? 'Starred' : 'All notes';
+      document.getElementById('feedTitle').textContent = tag ? `#${tag} ` : type === 'starred' ? 'Starred' : 'All notes';
       loadNotes(); loadTags();
     }
 
@@ -2432,7 +2693,7 @@
         const r = await fetch('/api/notes/import/upnote', { method: 'POST', body: fd, credentials: 'include' });
         if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
         const res = await r.json();
-        toast(`✓ Imported ${res.imported} notes, skipped ${res.skipped}`);
+        toast(`✓ Imported ${res.imported} notes, skipped ${res.skipped} `);
         archiveLoaded = false; loadArchiveCount();
       } catch (e) { toast(e.message, true); }
       input.value = '';
@@ -2445,21 +2706,21 @@
       modal.style.display = 'flex';
       if (currentUser.totp_enabled) {
         body.innerHTML = `
-      <p style="font-size:14px;color:var(--text-muted);margin-bottom:14px;">
-        2FA is currently <strong style="color:var(--accent)">enabled</strong>.<br>Enter your current code to disable it.
-      </p>
+        < p style = "font-size:14px;color:var(--text-muted);margin-bottom:14px;" >
+          2FA is currently < strong style = "color:var(--accent)" > enabled</strong >.< br > Enter your current code to disable it.
+      </p >
       <div class="form-field"><label>Current 2FA code</label><input type="text" id="totp-code-input" maxlength="6" inputmode="numeric" placeholder="000000"></div>
       <button class="btn-sm danger" onclick="disableTotp()">Disable 2FA</button>`;
       } else {
         try {
           const s = await api('POST', '/api/auth/2fa/setup');
           body.innerHTML = `
-        <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">
-          Scan this QR code with <strong>Google Authenticator</strong> or <strong>Authy</strong>, then enter the 6-digit code.
-        </p>
+        < p style = "font-size:14px;color:var(--text-muted);margin-bottom:12px;" >
+          Scan this QR code with <strong>Google Authenticator</strong> or < strong > Authy</strong >, then enter the 6 - digit code.
+        </p >
         <img src="data:image/png;base64,${s.qr_image}" style="display:block;margin:0 auto 14px;max-width:160px;border-radius:8px;">
-        <div class="form-field"><label>Verification code</label><input type="text" id="totp-code-input" maxlength="6" inputmode="numeric" placeholder="000000"></div>
-        <button class="btn-sm" onclick="enableTotp('${s.secret}')">Enable 2FA</button>`;
+          <div class="form-field"><label>Verification code</label><input type="text" id="totp-code-input" maxlength="6" inputmode="numeric" placeholder="000000"></div>
+          <button class="btn-sm" onclick="enableTotp('${s.secret}')">Enable 2FA</button>`;
         } catch (e) { body.innerHTML = `<p style="color:var(--danger)">${esc(e.message)}</p>`; }
       }
     }
@@ -2545,7 +2806,9 @@
     }
     function v(id) { return document.getElementById(id).value.trim(); }
     function setErr(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; }
-    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
     function fmtDate(d) {
       const now = new Date(), diff = now - d;
       if (diff < 86400000) return 'Today, ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -2834,6 +3097,141 @@
         if (gvMode === 'force') gvBuildForce(); else gvBuildSemantic();
       }
     });
+
+    // --- Settings & Sharing Logic ---
+    function applySettings(settings) {
+      if (!settings) return;
+      if (settings.theme) {
+        document.documentElement.setAttribute('data-theme', settings.theme);
+        document.getElementById('settings-theme').value = settings.theme;
+      }
+      if (settings.font) {
+        document.getElementById('settings-font').value = settings.font;
+        const fontId = 'custom-font-style';
+        let styleNode = document.getElementById(fontId);
+        if (!styleNode) {
+          styleNode = document.createElement('style');
+          styleNode.id = fontId;
+          document.head.appendChild(styleNode);
+        }
+        const f = settings.font;
+        const linkId = 'custom-font-link';
+        let linkNode = document.getElementById(linkId);
+        if (!linkNode) {
+          linkNode = document.createElement('link');
+          linkNode.id = linkId;
+          linkNode.rel = 'stylesheet';
+          document.head.appendChild(linkNode);
+        }
+        linkNode.href = `https://fonts.googleapis.com/css2?family=${f.replace(/ /g, '+')}:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap`;
+        styleNode.innerHTML = `body, input, textarea, button, select, .composer-input, .inline-editor, .note-action-btn, #drawer *, .tag { font-family: '${f}', sans-serif !important; }`;
+      }
+      if (settings.share_base_url) {
+        document.getElementById('settings-share-url').value = settings.share_base_url;
+      }
+      if (settings.show_image_previews !== undefined) {
+        document.getElementById('settings-img-preview').checked = !!settings.show_image_previews;
+        document.body.classList.toggle('img-preview-hidden', !settings.show_image_previews);
+      }
+      if (settings.ai_tagging_enabled !== undefined) {
+        document.getElementById('settings-ai-tags').checked = !!settings.ai_tagging_enabled;
+      }
+      if (settings.max_note_length) {
+        document.getElementById('drawer-max-height').value = settings.max_note_length;
+        localStorage.setItem('noteMaxHeight', settings.max_note_length);
+      }
+    }
+
+    function showSettingsModal() {
+      if (currentUser && currentUser.settings) applySettings(currentUser.settings);
+      document.getElementById('settings-modal').classList.add('open');
+      closeDrawer();
+    }
+
+    async function saveSettings(instantMode = false) {
+      if (!currentUser) return;
+      const newSettings = {
+        theme: document.getElementById('settings-theme').value,
+        font: document.getElementById('settings-font').value,
+        share_base_url: document.getElementById('settings-share-url').value.trim(),
+        show_image_previews: document.getElementById('settings-img-preview').checked,
+        ai_tagging_enabled: document.getElementById('settings-ai-tags').checked,
+        max_note_length: parseInt(document.getElementById('drawer-max-height').value) || 1000
+      };
+      currentUser.settings = newSettings;
+      applySettings(newSettings);
+      try {
+        await api('PATCH', '/api/auth/me/settings', { settings: newSettings });
+        if (!instantMode) toast('Settings saved');
+      } catch (e) { toast('Error saving settings', true); }
+    }
+
+    async function setMaxHeight(val) {
+      localStorage.setItem('noteMaxHeight', val);
+      evaluateMaxHeight();
+      await saveSettings(true);
+    }
+
+    async function testAiConnection() {
+      try {
+        toast('Testing connection...');
+        const r = await api('GET', '/api/auth/ai-test');
+        if (r && r.ok) toast('AI Connection OK ✓');
+        else toast('AI Connection Failed', true);
+      } catch (e) { toast(e.message || 'AI Connection Failed', true); }
+    }
+
+    async function shareNote(id) {
+      try {
+        const note = await api('PATCH', `/api/notes/${id}`, { is_public: true });
+        if (!note.public_id) throw new Error("Failed to generate public ID");
+        let base = (currentUser.settings && currentUser.settings.share_base_url) ? currentUser.settings.share_base_url.replace(/\\/$ /, '') : window.location.origin;
+        if (!base) base = window.location.origin;
+
+        const url = `${base}?shared=${note.public_id}`;
+        await navigator.clipboard.writeText(url);
+        toast('Public sharing link copied to clipboard!');
+      } catch (e) { toast(e.message || 'Error sharing note', true); }
+    }
+
+    // --- Bootstrapper to handle public sharing views ---
+    (async function () {
+      const sp = new URLSearchParams(window.location.search);
+      const sharedId = sp.get('shared');
+      if (sharedId) {
+        document.title = 'Shared Note | NoteFlow';
+        document.body.innerHTML = '<div style="display:flex;justify-content:center;padding:40px;font-family:sans-serif;color:#666;">Loading shared note...</div>';
+        try {
+          const r = await fetch(`/api/notes/shared/${sharedId}`);
+          if (!r.ok) throw new Error('Note not found or is private');
+          const note = await r.json();
+          let attachHtml = '';
+          (note.attachments || []).forEach(att => {
+            if (att.mime_type && att.mime_type.startsWith('image/')) {
+              attachHtml += `<img style="max-width:100%; border-radius:8px; margin-top:12px;" src="/api/notes/shared/${sharedId}/attachments/${att.id}/file">`;
+            }
+          });
+          document.body.style.background = '#faf8f4';
+          document.body.innerHTML = `
+            <div style="max-width:700px; margin:40px auto; padding:30px; background:#fff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); font-family:'DM Sans',sans-serif; line-height:1.6; color:#1a1814;">
+              <div style="font-size:12px; color:#a0a0a0; margin-bottom:16px; font-family:'IBM Plex Mono',monospace;">
+                Shared via NoteFlow &middot; ${new Date(note.created_at).toLocaleDateString()}
+              </div>
+              <div style="font-size:16px;">${DOMPurify.sanitize(marked.parse(note.content))}</div>
+              ${attachHtml}
+            </div>
+          `;
+          return;
+        } catch (e) {
+          document.body.innerHTML = `<div style="text-align:center;padding:40px;color:#c0392b;font-family:sans-serif;">${e.message}</div>`;
+          return;
+        }
+      }
+
+      init();
+    })();
+    // --- End Bootstrapper ---
+
   </script>
 </body>
 
