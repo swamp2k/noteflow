@@ -192,6 +192,48 @@ async def create_note(
     return _note_response(result.scalar_one())
 
 
+@router.get("/shared/{public_id}/attachments/{att_id}/file")
+async def get_shared_attachment_file(
+    public_id: str,
+    att_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Attachment)
+        .join(Note)
+        .where(
+            Attachment.id == att_id,
+            Note.public_id == public_id,
+            Note.is_public == True,
+        )
+    )
+    att = result.scalar_one_or_none()
+    if not att:
+        raise HTTPException(404, "Attachment not found")
+
+    path = os.path.join(settings.UPLOAD_DIR, att.stored_name)
+    if not os.path.exists(path):
+        raise HTTPException(404, "File not found")
+
+    return FileResponse(path, media_type=att.mime_type, filename=att.filename)
+
+
+@router.get("/shared/{public_id}")
+async def get_shared_note(
+    public_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Note)
+        .where(Note.public_id == public_id, Note.is_public == True)
+        .options(selectinload(Note.attachments))
+    )
+    note = result.scalar_one_or_none()
+    if not note:
+        raise HTTPException(404, "Note not found or not public")
+    return _note_response(note)
+
+
 @router.get("/{note_id}")
 async def get_note(
     note_id: int,
@@ -292,44 +334,3 @@ async def get_attachment_file(
 
     return FileResponse(path, media_type=att.mime_type, filename=att.filename)
 
-
-@router.get("/shared/{public_id}")
-async def get_shared_note(
-    public_id: str,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Note)
-        .where(Note.public_id == public_id, Note.is_public == True)
-        .options(selectinload(Note.attachments))
-    )
-    note = result.scalar_one_or_none()
-    if not note:
-        raise HTTPException(404, "Note not found or not public")
-    return _note_response(note)
-
-
-@router.get("/shared/{public_id}/attachments/{att_id}/file")
-async def get_shared_attachment_file(
-    public_id: str,
-    att_id: int,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Attachment)
-        .join(Note)
-        .where(
-            Attachment.id == att_id,
-            Note.public_id == public_id,
-            Note.is_public == True,
-        )
-    )
-    att = result.scalar_one_or_none()
-    if not att:
-        raise HTTPException(404, "Attachment not found")
-
-    path = os.path.join(settings.UPLOAD_DIR, att.stored_name)
-    if not os.path.exists(path):
-        raise HTTPException(404, "File not found")
-
-    return FileResponse(path, media_type=att.mime_type, filename=att.filename)
