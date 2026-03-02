@@ -2286,11 +2286,6 @@
     marked.use({ breaks: true });
     const tdService = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-' });
 
-    // Boot
-    (async () => {
-      try { const me = await api('GET', '/api/auth/me'); showApp(me); }
-      catch { showAuth(); }
-    })();
 
     function showAuth() {
       document.getElementById('auth-page').style.display = 'flex';
@@ -3195,7 +3190,7 @@
       } catch (e) { toast(e.message || 'Error sharing note', true); }
     }
 
-    // --- Bootstrapper to handle public sharing views ---
+    // --- Bootstrapper: handle shared note links or normal auth boot ---
     (async function () {
       const sp = new URLSearchParams(window.location.search);
       const sharedId = sp.get('shared');
@@ -3229,7 +3224,9 @@
         }
       }
 
-      init();
+      // Normal boot: check if already logged in
+      try { const me = await api('GET', '/api/auth/me'); showApp(me); }
+      catch { showAuth(); }
     })();
     // --- End Bootstrapper ---
 
