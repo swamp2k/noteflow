@@ -3186,7 +3186,7 @@
       try {
         const note = await api('PATCH', `/api/notes/${id}`, { is_public: true });
         if (!note.public_id) throw new Error("Failed to generate public ID");
-        let base = (currentUser.settings && currentUser.settings.share_base_url) ? currentUser.settings.share_base_url.replace(/\\/$ /, '') : window.location.origin;
+        let base = (currentUser.settings && currentUser.settings.share_base_url) ? currentUser.settings.share_base_url.replace(/\/$/, '') : window.location.origin;
         if (!base) base = window.location.origin;
 
         const url = `${base}?shared=${note.public_id}`;
