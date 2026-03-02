@@ -1943,6 +1943,128 @@
     .img-preview-hidden img.note-image {
       display: none !important;
     }
+
+    /* Settings Modal */
+    .settings-section {
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 18px;
+      margin-bottom: 18px;
+    }
+
+    .settings-section:last-of-type {
+      border-bottom: none;
+    }
+
+    .settings-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      gap: 12px;
+    }
+
+    .settings-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .settings-select {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+      width: 100%;
+    }
+
+    .settings-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #ccc;
+      border-radius: 22px;
+      transition: 0.25s;
+    }
+
+    .toggle-slider:before {
+      content: '';
+      position: absolute;
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.25s;
+    }
+
+    .toggle-switch input:checked+.toggle-slider {
+      background: var(--accent);
+    }
+
+    .toggle-switch input:checked+.toggle-slider:before {
+      transform: translateX(18px);
+    }
+
+    .settings-test-btn {
+      width: 100%;
+      padding: 9px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.15s;
+      text-align: left;
+    }
+
+    .settings-test-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
   </style>
 </head>
 
@@ -2094,7 +2216,8 @@
         </div>
         <div class="sidebar-divider"></div>
         <div class="sidebar-section" style="margin-top:auto;">
-          <button class="btn-sm" style="width:100%;margin-bottom:6px;" onclick="showTotpModal()">🔐 2FA</button>
+          <button class="btn-sm" style="width:100%;margin-bottom:6px;" onclick="showSettingsModal()">⚙️
+            Settings</button>
           <button class="logout-btn" onclick="doLogout()">Sign out</button>
         </div>
       </aside>
@@ -2177,7 +2300,8 @@
         <div class="panel-section">
           <div class="panel-title">Signed in as</div>
           <div id="right-user" style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"></div>
-          <button class="btn-sm" onclick="showTotpModal()" style="margin-bottom:6px;width:100%;">🔐 2FA</button>
+          <button class="btn-sm" onclick="showSettingsModal()" style="margin-bottom:6px;width:100%;">⚙️
+            Settings</button>
           <button class="logout-btn" onclick="doLogout()">Sign out</button>
         </div>
         <div class="panel-section">
@@ -2264,7 +2388,111 @@
         <button class="logout-btn" onclick="closeModal('totp-modal')">Close</button>
       </div>
     </div>
-  </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-bg" id="settings-modal" style="align-items:flex-start;padding-top:40px;overflow-y:auto;">
+      <div class="modal-box" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <div class="modal-title" style="margin:0;">⚙️ Settings</div>
+          <button onclick="closeModal('settings-modal')"
+            style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);line-height:1;">✕</button>
+        </div>
+
+        <!-- Appearance -->
+        <div class="settings-section">
+          <div class="settings-section-title">Appearance</div>
+          <div class="settings-row">
+            <label class="settings-label">Theme</label>
+            <select id="settings-theme" class="settings-select" onchange="previewTheme(this.value)">
+              <option value="">Default (Light)</option>
+              <option value="dark">Dark</option>
+              <option value="sepia">Sepia</option>
+              <option value="nord">Nord</option>
+              <option value="dracula">Dracula</option>
+              <option value="solarized-light">Solarized Light</option>
+              <option value="solarized-dark">Solarized Dark</option>
+              <option value="monokai">Monokai</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label class="settings-label">Font</label>
+            <select id="settings-font" class="settings-select" onchange="previewFont(this.value)">
+              <option value="">Default (DM Sans)</option>
+              <option value="Inter">Inter</option>
+              <option value="Lato">Lato</option>
+              <option value="Merriweather">Merriweather</option>
+              <option value="Nunito">Nunito</option>
+              <option value="Playfair Display">Playfair Display</option>
+              <option value="Roboto">Roboto</option>
+              <option value="Source Serif 4">Source Serif 4</option>
+              <option value="Space Grotesk">Space Grotesk</option>
+              <option value="IBM Plex Sans">IBM Plex Sans</option>
+              <option value="Crimson Pro">Crimson Pro</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="settings-section">
+          <div class="settings-section-title">Notes</div>
+          <div class="settings-row">
+            <label class="settings-label">Max note height (px)</label>
+            <input type="number" id="settings-max-height" class="settings-select" value="1000" min="200" max="10000"
+              style="width:120px;">
+          </div>
+          <div class="settings-toggle-row">
+            <span>Show image previews in notes</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="settings-img-preview" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- AI -->
+        <div class="settings-section">
+          <div class="settings-section-title">AI</div>
+          <div class="settings-toggle-row">
+            <span>Enable AI tagging</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="settings-ai-tags" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <button class="settings-test-btn" onclick="testAiConnection()" id="settings-ai-test-btn">
+            🔌 Test AI Connection
+          </button>
+        </div>
+
+        <!-- Sharing -->
+        <div class="settings-section">
+          <div class="settings-section-title">Sharing</div>
+          <div class="settings-row">
+            <label class="settings-label">Base URL for shared notes</label>
+            <input type="url" id="settings-share-url" class="settings-select"
+              placeholder="https://your-noteflow-url.com">
+          </div>
+        </div>
+
+        <!-- 2FA -->
+        <div class="settings-section">
+          <div class="settings-section-title">Two-Factor Authentication</div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Protect your account with an
+            authenticator app.</p>
+          <button class="settings-test-btn" onclick="closeModal('settings-modal');showTotpModal()">🔐 Manage
+            2FA</button>
+        </div>
+
+        <!-- Save -->
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn-primary" onclick="saveSettings()" style="flex:1;">Save Settings</button>
+          <button onclick="closeModal('settings-modal')"
+            style="flex:1;padding:11px;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:15px;color:var(--text-muted);">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end app-page -->
 
   <div class="toast" id="toast"></div>
 
@@ -3094,100 +3322,122 @@
       }
     });
 
-    // --- Settings & Sharing Logic ---
-    function applySettings(settings) {
-      if (!settings) return;
-      if (settings.theme) {
-        document.documentElement.setAttribute('data-theme', settings.theme);
-        document.getElementById('settings-theme').value = settings.theme;
+    // ── Settings & Sharing ──────────────────────────────────────────
+
+    function el(id) { return document.getElementById(id); }
+
+    function applyFont(fontName) {
+      if (!fontName) {
+        const s = el('custom-font-style'); if (s) s.innerHTML = '';
+        return;
       }
-      if (settings.font) {
-        document.getElementById('settings-font').value = settings.font;
-        const fontId = 'custom-font-style';
-        let styleNode = document.getElementById(fontId);
-        if (!styleNode) {
-          styleNode = document.createElement('style');
-          styleNode.id = fontId;
-          document.head.appendChild(styleNode);
-        }
-        const f = settings.font;
-        const linkId = 'custom-font-link';
-        let linkNode = document.getElementById(linkId);
-        if (!linkNode) {
-          linkNode = document.createElement('link');
-          linkNode.id = linkId;
-          linkNode.rel = 'stylesheet';
-          document.head.appendChild(linkNode);
-        }
-        linkNode.href = `https://fonts.googleapis.com/css2?family=${f.replace(/ /g, '+')}:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap`;
-        styleNode.innerHTML = `body, input, textarea, button, select, .composer-input, .inline-editor, .note-action-btn, #drawer *, .tag { font-family: '${f}', sans-serif !important; }`;
+      let link = el('custom-font-link');
+      if (!link) {
+        link = document.createElement('link');
+        link.id = 'custom-font-link'; link.rel = 'stylesheet';
+        document.head.appendChild(link);
       }
-      if (settings.share_base_url) {
-        document.getElementById('settings-share-url').value = settings.share_base_url;
+      link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap`;
+      let style = el('custom-font-style');
+      if (!style) {
+        style = document.createElement('style');
+        style.id = 'custom-font-style';
+        document.head.appendChild(style);
       }
-      if (settings.show_image_previews !== undefined) {
-        document.getElementById('settings-img-preview').checked = !!settings.show_image_previews;
-        document.body.classList.toggle('img-preview-hidden', !settings.show_image_previews);
-      }
-      if (settings.ai_tagging_enabled !== undefined) {
-        document.getElementById('settings-ai-tags').checked = !!settings.ai_tagging_enabled;
-      }
-      if (settings.max_note_length) {
-        document.getElementById('drawer-max-height').value = settings.max_note_length;
-        localStorage.setItem('noteMaxHeight', settings.max_note_length);
-      }
+      style.innerHTML = `body,input,textarea,button,select,.composer-input,.inline-editor{font-family:'${fontName}',sans-serif!important}`;
+    }
+
+    function applySettings(s) {
+      if (!s) return;
+      // Theme
+      document.documentElement.setAttribute('data-theme', s.theme || '');
+      const themeEl = el('settings-theme');
+      if (themeEl) themeEl.value = s.theme || '';
+      // Font
+      applyFont(s.font || '');
+      const fontEl = el('settings-font');
+      if (fontEl) fontEl.value = s.font || '';
+      // Share URL
+      const shareEl = el('settings-share-url');
+      if (shareEl && s.share_base_url) shareEl.value = s.share_base_url;
+      // Image preview
+      const imgEl = el('settings-img-preview');
+      const showPreviews = s.show_image_previews !== false; // default on
+      if (imgEl) imgEl.checked = showPreviews;
+      document.body.classList.toggle('img-preview-hidden', !showPreviews);
+      // AI tagging
+      const aiEl = el('settings-ai-tags');
+      if (aiEl) aiEl.checked = s.ai_tagging_enabled !== false; // default on
+      // Max height
+      const maxH = s.max_note_length || 1000;
+      const mhEl = el('settings-max-height');
+      if (mhEl) mhEl.value = maxH;
+      localStorage.setItem('noteMaxHeight', maxH);
+      document.documentElement.style.setProperty('--note-max-height', maxH + 'px');
+    }
+
+    function previewTheme(val) {
+      document.documentElement.setAttribute('data-theme', val);
+    }
+
+    function previewFont(val) {
+      applyFont(val);
     }
 
     function showSettingsModal() {
       if (currentUser && currentUser.settings) applySettings(currentUser.settings);
-      document.getElementById('settings-modal').classList.add('open');
-      closeDrawer();
+      const m = el('settings-modal');
+      m.style.display = 'flex';
+      if (typeof closeDrawer === 'function') closeDrawer();
     }
 
-    async function saveSettings(instantMode = false) {
+    function closeModal(id) {
+      const m = el(id);
+      if (!m) return;
+      m.style.display = 'none';
+    }
+
+    async function saveSettings() {
       if (!currentUser) return;
       const newSettings = {
-        theme: document.getElementById('settings-theme').value,
-        font: document.getElementById('settings-font').value,
-        share_base_url: document.getElementById('settings-share-url').value.trim(),
-        show_image_previews: document.getElementById('settings-img-preview').checked,
-        ai_tagging_enabled: document.getElementById('settings-ai-tags').checked,
-        max_note_length: parseInt(document.getElementById('drawer-max-height').value) || 1000
+        theme: el('settings-theme').value,
+        font: el('settings-font').value,
+        share_base_url: (el('settings-share-url').value || '').trim(),
+        show_image_previews: el('settings-img-preview').checked,
+        ai_tagging_enabled: el('settings-ai-tags').checked,
+        max_note_length: parseInt(el('settings-max-height').value) || 1000
       };
       currentUser.settings = newSettings;
       applySettings(newSettings);
       try {
         await api('PATCH', '/api/auth/me/settings', { settings: newSettings });
-        if (!instantMode) toast('Settings saved');
-      } catch (e) { toast('Error saving settings', true); }
-    }
-
-    async function setMaxHeight(val) {
-      localStorage.setItem('noteMaxHeight', val);
-      evaluateMaxHeight();
-      await saveSettings(true);
+        toast('Settings saved ✓');
+        closeModal('settings-modal');
+      } catch (e) { toast('Failed to save: ' + (e.message || '?'), true); }
     }
 
     async function testAiConnection() {
+      const btn = el('settings-ai-test-btn');
+      if (btn) { btn.textContent = '⏳ Testing…'; btn.disabled = true; }
       try {
-        toast('Testing connection...');
         const r = await api('GET', '/api/auth/ai-test');
-        if (r && r.ok) toast('AI Connection OK ✓');
-        else toast('AI Connection Failed', true);
-      } catch (e) { toast(e.message || 'AI Connection Failed', true); }
+        toast(r && r.ok ? 'AI connection OK ✓' : 'AI connection failed ✗', !r || !r.ok);
+      } catch (e) {
+        toast('AI connection failed: ' + (e.message || '?'), true);
+      } finally {
+        if (btn) { btn.textContent = '🔌 Test AI Connection'; btn.disabled = false; }
+      }
     }
 
     async function shareNote(id) {
       try {
         const note = await api('PATCH', `/api/notes/${id}`, { is_public: true });
-        if (!note.public_id) throw new Error("Failed to generate public ID");
-        let base = (currentUser.settings && currentUser.settings.share_base_url) ? currentUser.settings.share_base_url.replace(/\/$/, '') : window.location.origin;
-        if (!base) base = window.location.origin;
-
+        if (!note.public_id) throw new Error('No public ID returned');
+        const base = ((currentUser.settings || {}).share_base_url || '').replace(/\/$/, '') || window.location.origin;
         const url = `${base}?shared=${note.public_id}`;
         await navigator.clipboard.writeText(url);
-        toast('Public sharing link copied to clipboard!');
-      } catch (e) { toast(e.message || 'Error sharing note', true); }
+        toast('Share link copied! 🔗');
+      } catch (e) { toast('Share failed: ' + (e.message || '?'), true); }
     }
 
     // --- Bootstrapper: handle shared note links or normal auth boot ---
