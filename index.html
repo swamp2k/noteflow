@@ -1,0 +1,2785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <link rel="manifest" href="https://noteflow-api.jeppesen.cc/pwa/manifest.json" crossorigin="anonymous">
+  <meta name="theme-color" content="#5b6af0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="NoteFlow">
+  <link rel="apple-touch-icon" href="https://noteflow-api.jeppesen.cc/pwa/icon-192.png">
+  <link rel="icon" href="https://noteflow-api.jeppesen.cc/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>NoteFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #f7f4ef;
+    --surface:      #ffffff;
+    --border:       #e8e2d9;
+    --muted:        #a89f94;
+    --text:         #2c2825;
+    --text-soft:    #6b6560;
+    --accent:       #c17f3e;
+    --accent-bg:    #fdf3e7;
+    --star:         #e8a020;
+    --danger:       #c0392b;
+    --hidden-bg:    #f0edf8;
+    --hidden-border:#c4b8e8;
+    --sidebar-w:    220px;
+    --header-h:     52px;
+    --radius:       12px;
+    --shadow:       0 1px 3px rgba(44,40,37,0.07), 0 4px 12px rgba(44,40,37,0.05);
+    --font-body:    'DM Sans', sans-serif;
+    --font-serif:   'Lora', serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  /* ── App shell ──────────────────────────────────────────────────── */
+  /* Not display:flex — sidebar is position:fixed so no flex needed.
+     Using flex caused Blink to occasionally treat the fixed sidebar as
+     in-flow during large DOM insertions (infinite scroll), pushing
+     #content 220px to the right. */
+  #app { min-height: 100vh; }
+
+  /* ── Sidebar ────────────────────────────────────────────────────── */
+  #sidebar {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: fixed; left: 0; top: 0; bottom: 0;
+    z-index: 50;
+    transition: transform 0.2s;
+  }
+
+  .sidebar-logo {
+    padding: 16px 18px 12px;
+    font-family: var(--font-serif);
+    font-size: 19px; font-weight: 500;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.3px;
+  }
+
+  .sidebar-nav { flex: 1; padding: 10px 8px; display: flex; flex-direction: column; }
+  .sidebar-nav .nav-spacer { flex: 1; min-height: 16px; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 8px;
+    cursor: pointer; font-size: 14px; color: var(--text-soft);
+    transition: all 0.12s; user-select: none; border: none;
+    background: none; width: 100%; text-align: left;
+    font-family: var(--font-body);
+  }
+  .nav-item:hover { background: var(--accent-bg); color: var(--accent); }
+  .nav-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 500; }
+  .nav-item svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; pointer-events: none; }
+  .nav-item.active svg { stroke: var(--accent); }
+
+  .nav-section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
+    color: var(--muted); text-transform: uppercase;
+    padding: 12px 12px 4px;
+  }
+
+  /* ── Main content ───────────────────────────────────────────────── */
+  #content {
+    display: flex; flex-direction: column;
+    min-height: 100vh;
+    margin-left: 0;
+  }
+  #content.sidebar-visible {
+    margin-left: var(--sidebar-w);
+  }
+
+  header {
+    position: sticky; top: 0; z-index: 40;
+    background: rgba(247,244,239,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: var(--header-h);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .header-title {
+    font-size: 15px; font-weight: 500; color: var(--text);
+  }
+
+  .header-right { display: flex; gap: 8px; align-items: center; }
+
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: var(--text-soft); transition: all 0.15s;
+  }
+  .icon-btn:hover { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+  .icon-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+
+  /* hamburger for mobile */
+  #menu-toggle { display: none; }
+
+  main {
+    flex: 1;
+    max-width: min(var(--feed-max-width, 700px), 100%);
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px 20px 100px;
+  }
+
+  /* ── Composer ───────────────────────────────────────────────────── */
+  #composer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 1px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    background: #fafaf8;
+    max-height: 0; overflow: hidden; padding: 0;
+    transition: max-height 0.15s, padding 0.15s;
+  }
+  #composer.expanded .toolbar { max-height: 48px; padding: 6px 10px; }
+  #composer.expanded #editor { min-height: 90px; }
+
+  .tb-btn {
+    width: 28px; height: 28px; border: none; background: none;
+    cursor: pointer; border-radius: 5px; color: var(--text-soft);
+    font-family: var(--font-body); font-size: 13px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+  }
+  .tb-btn:hover { background: var(--accent-bg); color: var(--accent); }
+  .tb-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  .tb-sep { width: 1px; background: var(--border); margin: 4px 3px; align-self: stretch; }
+
+  #editor {
+    min-height: 42px; max-height: 260px; overflow-y: auto;
+    padding: 10px 14px; outline: none;
+    font-family: var(--font-body); font-size: 14.5px;
+    line-height: 1.5; color: var(--text);
+    transition: min-height 0.15s;
+  }
+  #editor:focus { min-height: 90px; }
+  #editor:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
+  #editor p { margin: 0; }
+  #editor div { margin: 0; }
+  #editor b, #editor strong { font-weight: 600; }
+  #editor i, #editor em { font-style: italic; }
+  #editor u { text-decoration: underline; }
+  #editor s, #editor strike { text-decoration: line-through; }
+  #editor h1 { font-family: var(--font-serif); font-size: 1.35em; font-weight: 500; line-height: 1.3; }
+  #editor h2 { font-family: var(--font-serif); font-size: 1.15em; font-weight: 500; line-height: 1.3; }
+  #editor h3 { font-size: 1.05em; font-weight: 600; line-height: 1.3; }
+  #editor code { background: #f0ede8; padding: 1px 5px; border-radius: 4px; font-size: 0.88em; font-family: monospace; }
+  #editor blockquote { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--text-soft); }
+  #editor ul, #editor ol { padding-left: 20px; }
+  #editor a { color: var(--accent); }
+
+  .composer-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 12px; border-top: 1px solid var(--border); background: #fafaf8;
+  }
+  .composer-left { display: flex; gap: 6px; align-items: center; }
+
+  .attach-btn {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--muted);
+    background: none; border: none; cursor: pointer; padding: 4px 6px;
+    border-radius: 6px; transition: all 0.12s; font-family: var(--font-body);
+  }
+  .attach-btn:hover { background: var(--accent-bg); color: var(--accent); }
+  .attach-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; pointer-events: none; }
+
+  #image-preview-area { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 12px 10px; }
+  .img-preview-wrap { position: relative; width: 68px; height: 68px; }
+  .img-preview-wrap img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+  .img-remove {
+    position: absolute; top: -5px; right: -5px;
+    width: 17px; height: 17px; border-radius: 50%;
+    background: var(--danger); color: #fff; border: none; cursor: pointer;
+    font-size: 10px; display: flex; align-items: center; justify-content: center;
+  }
+  .ocr-badge {
+    position: absolute; bottom: 2px; left: 2px; right: 2px;
+    background: rgba(0,0,0,0.55); color: #fff; font-size: 9px;
+    text-align: center; border-radius: 0 0 6px 6px; padding: 1px 2px;
+  }
+
+  .save-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 6px 18px; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; font-family: var(--font-body);
+  }
+  .save-btn:hover { background: #a96d32; }
+  .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Feed ───────────────────────────────────────────────────────── */
+  #feed { display: flex; flex-direction: column; gap: 10px; }
+
+  .memo-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 12px 14px; transition: box-shadow 0.15s; position: relative;
+  }
+  .memo-card:hover { box-shadow: 0 2px 8px rgba(44,40,37,0.1), 0 6px 20px rgba(44,40,37,0.07); }
+  .memo-card.starred { border-left: 3px solid var(--star); }
+  .memo-card.hidden-note { border-left: 3px solid var(--hidden-border); background: var(--hidden-bg); }
+  .memo-card.pinned { border-top: 2px solid var(--accent); }
+
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .card-meta { display: flex; align-items: center; gap: 7px; }
+  .card-date { font-size: 11.5px; color: var(--muted); }
+  .card-badges { display: flex; gap: 4px; }
+  .badge { font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 500; }
+  .badge-pinned { background: var(--accent-bg); color: var(--accent); }
+  .badge-hidden { background: var(--hidden-bg); color: #7c5cbf; border: 1px solid var(--hidden-border); }
+
+  .card-actions {
+    display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s;
+  }
+  .memo-card:hover .card-actions,
+  .memo-card .card-actions:focus-within { opacity: 1; }
+
+  .card-action-btn {
+    width: 26px; height: 26px; border-radius: 6px; border: none;
+    background: none; cursor: pointer; color: var(--muted);
+    display: flex; align-items: center; justify-content: center; transition: all 0.12s;
+  }
+  .card-action-btn:hover { background: var(--accent-bg); color: var(--accent); }
+  .card-action-btn.star-active { color: var(--star); }
+  .card-action-btn.star-active svg { fill: var(--star); }
+  .card-action-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+
+  /* ── Card content ───────────────────────────────────────────────── */
+  .card-content {
+    font-size: 14.5px; line-height: 1.65; color: var(--text); word-break: break-word;
+  }
+  .card-content p { margin: 0 0 8px; }
+  .card-content p:last-child { margin-bottom: 0; }
+  .card-content h1 { font-family: var(--font-serif); font-size: 1.25em; font-weight: 500; line-height: 1.3; margin: 6px 0 4px; }
+  .card-content h2 { font-family: var(--font-serif); font-size: 1.1em; font-weight: 500; line-height: 1.3; margin: 5px 0 3px; }
+  .card-content h3 { font-size: 1em; font-weight: 600; line-height: 1.3; margin: 4px 0 2px; }
+  .card-content code { background: #f0ede8; padding: 1px 4px; border-radius: 3px; font-size: 0.87em; font-family: monospace; }
+  .card-content pre { background: #f0ede8; padding: 8px 12px; border-radius: 8px; overflow-x: auto; margin: 6px 0; }
+  .card-content blockquote { border-left: 3px solid var(--accent); padding-left: 10px; color: var(--text-soft); margin: 6px 0; }
+  .card-content ul, .card-content ol { padding-left: 18px; margin: 4px 0 8px; }
+  .card-content li { margin: 2px 0; }
+  .card-content a { color: var(--accent); }
+  .card-content hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+  .card-content details { margin-top: 8px; }
+  .card-content details summary { cursor: pointer; color: var(--muted); font-size: 12px; user-select: none; }
+
+  .card-images { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; align-items: flex-start; }
+  .file-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--accent-bg); color: var(--accent);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 5px 10px; font-size: 12px; text-decoration: none;
+    transition: all 0.12s; max-width: 200px; cursor: pointer;
+    font-family: var(--font-body);
+  }
+  .file-chip:hover { background: var(--accent); color: #fff; }
+  .file-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-chip-indexing::after { content: ' ⏳'; font-size: 10px; opacity: 0.6; }
+  /* Rich previews */
+  .att-preview-pdf { width: 100%; height: 320px; border: none; border-radius: 8px; margin-top: 6px; background: var(--bg-alt); display: block; }
+  .att-preview-video { width: 100%; max-height: 320px; border-radius: 8px; margin-top: 6px; display: block; background: #000; }
+  .att-preview-audio { width: 100%; margin-top: 6px; border-radius: 8px; }
+  .att-preview-text { font-family: monospace; font-size: 12px; line-height: 1.5; color: var(--muted); background: var(--bg-alt); border-radius: 8px; padding: 10px 12px; margin-top: 6px; max-height: 160px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+  .att-preview-indexed { font-size: 12px; line-height: 1.5; color: var(--muted); background: var(--bg-alt); border-radius: 8px; padding: 10px 12px; margin-top: 6px; max-height: 120px; overflow-y: auto; font-style: italic; }
+  .att-preview-indexed::before { content: '📄 '; }
+
+  /* Attachments gallery view */
+  .att-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .att-gallery-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; cursor: pointer;
+    transition: box-shadow 0.15s; position: relative;
+  }
+  .att-gallery-item:hover { box-shadow: 0 4px 16px rgba(44,40,37,0.12); }
+  .att-gallery-img { width: 100%; height: 120px; object-fit: cover; display: block; background: var(--bg); }
+  .att-gallery-icon {
+    width: 100%; height: 120px; display: flex; align-items: center;
+    justify-content: center; font-size: 36px; background: var(--accent-bg);
+  }
+  .att-gallery-meta {
+    padding: 7px 10px; border-top: 1px solid var(--border);
+  }
+  .att-gallery-name { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .att-gallery-link { font-size: 11px; color: var(--accent); margin-top: 2px; cursor: pointer; }
+  .att-gallery-link:hover { text-decoration: underline; }
+  .card-images img {
+    max-width: 180px; max-height: 140px; border-radius: 7px;
+    border: 1px solid var(--border); object-fit: cover; cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .card-images img:hover { transform: scale(1.02); }
+
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .tag-pill {
+    font-size: 11px; padding: 2px 7px;
+    background: var(--accent-bg); color: var(--accent);
+    border-radius: 10px; cursor: pointer; transition: all 0.12s; font-weight: 500;
+  }
+  .tag-pill:hover { background: var(--accent); color: #fff; }
+
+  /* ── Share modal ────────────────────────────────────────────────── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(44,40,37,0.4); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: 0 8px 40px rgba(44,40,37,0.18);
+    padding: 24px; width: 380px; max-width: 90vw;
+  }
+  .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .modal-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .modal-label { font-size: 12px; color: var(--muted); min-width: 60px; }
+  .modal input[type=text] {
+    flex: 1; border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 10px; font-size: 13px; font-family: var(--font-body);
+    background: var(--bg); color: var(--text); outline: none;
+  }
+  .modal input[type=text]:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .btn-ghost {
+    background: none; border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text-soft);
+    font-family: var(--font-body); transition: all 0.12s;
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary {
+    background: var(--accent); color: #fff; border: none; border-radius: 7px;
+    padding: 6px 14px; font-size: 13px; cursor: pointer; font-family: var(--font-body);
+    transition: all 0.12s;
+  }
+  .btn-primary:hover { background: #a96d32; }
+  .share-link-row {
+    display: flex; gap: 6px; margin-top: 10px;
+  }
+  .share-link-row input {
+    flex: 1; border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 10px; font-size: 12px; font-family: monospace;
+    background: var(--bg); color: var(--text-soft); outline: none;
+  }
+  .copy-btn {
+    background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent);
+    border-radius: 7px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+    font-family: var(--font-body); transition: all 0.12s; white-space: nowrap;
+  }
+  .copy-btn:hover { background: var(--accent); color: #fff; }
+
+  /* ── Load more ──────────────────────────────────────────────────── */
+  #load-more { text-align: center; padding: 16px 0; }
+  .load-more-btn {
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 20px; font-size: 13px; color: var(--muted);
+    cursor: pointer; transition: all 0.15s; font-family: var(--font-body);
+  }
+  .load-more-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+  /* ── Lightbox ───────────────────────────────────────────────────── */
+  #lightbox {
+    display: none; position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.9); align-items: center; justify-content: center;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img { max-width: 88vw; max-height: 88vh; border-radius: 8px; user-select: none; touch-action: none; transform-origin: center center; cursor: zoom-in; }
+  #lightbox-content { display: none; }
+  #lightbox-content.open { display: flex !important; }
+  .lb-file-header { padding: 14px 18px; font-size: 13px; font-weight: 600; color: #333; background: #f7f7f5; border-bottom: 1px solid #e5e5e0; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .lb-file-body { flex: 1; overflow: hidden; position: relative; }
+  .lb-file-body iframe { width: 100%; height: 100%; border: none; display: block; }
+  .lb-file-body video, .lb-file-body audio { width: 100%; padding: 20px; box-sizing: border-box; }
+  .lb-file-body .lb-text { padding: 20px; font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-y: auto; height: 100%; box-sizing: border-box; color: #333; }
+  .lb-file-body .lb-indexed { padding: 20px; font-size: 14px; line-height: 1.7; overflow-y: auto; height: 100%; box-sizing: border-box; color: #444; }
+  .lb-file-body .lb-indexed h3 { font-size: 13px; color: #999; font-weight: normal; margin: 0 0 12px; }
+  .lb-loading { display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 14px; }
+  #lightbox-close {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(255,255,255,0.15); border: none; color: #fff;
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+    font-size: 18px; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  #lightbox-close:hover { background: rgba(255,255,255,0.3); }
+  #lightbox-prev, #lightbox-next {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.12); border: none; color: #fff;
+    width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+    font-size: 28px; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s; user-select: none;
+  }
+  #lightbox-prev { left: 16px; }
+  #lightbox-next { right: 16px; }
+  #lightbox-prev:hover, #lightbox-next:hover { background: rgba(255,255,255,0.28); }
+  #lightbox-prev.hidden, #lightbox-next.hidden { opacity: 0; pointer-events: none; }
+  #lightbox-counter {
+    position: absolute; bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.5); color: #fff; border-radius: 12px;
+    padding: 3px 12px; font-size: 12px; font-family: var(--font-body);
+  }
+  #lightbox-counter.hidden { display: none; }
+
+  /* ── Toast ──────────────────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: var(--text); color: #fff;
+    padding: 7px 16px; border-radius: 20px; font-size: 13px;
+    opacity: 0; transition: all 0.2s; pointer-events: none; z-index: 400;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Spinner ────────────────────────────────────────────────────── */
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+    animation: spin 0.6s linear infinite; display: inline-block; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Search bar ─────────────────────────────────────────────────── */
+  #search-bar {
+    display: none; margin-bottom: 12px;
+    position: relative;
+  }
+  #search-bar.visible { display: block; }
+  #search-input {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 32px 7px 32px; font-size: 13px;
+    font-family: var(--font-body); background: var(--surface);
+    color: var(--text); outline: none; transition: border-color 0.15s;
+    height: 34px;
+  }
+  #search-input:focus { border-color: var(--accent); }
+  #search-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); pointer-events: none;
+  }
+  #search-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 14px; display: none; padding: 2px 4px;
+  }
+  #search-clear.visible { display: block; }
+
+  /* ── Empty state ────────────────────────────────────────────────── */
+  .empty-state {
+    text-align: center; padding: 60px 20px; color: var(--muted); font-size: 14px;
+  }
+
+  /* ── Card max-height (set by settings) ─────────────────────────── */
+  .card-content-wrap {
+    overflow: hidden;
+    position: relative;
+  }
+  .card-content-wrap.clamped::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--surface));
+    pointer-events: none;
+  }
+  .memo-card.hidden-note .card-content-wrap.clamped::after { background: linear-gradient(transparent, var(--hidden-bg)); }
+  .read-more-btn {
+    background: none; border: none; font-size: 12px; color: var(--accent);
+    cursor: pointer; padding: 2px 0 0; font-family: var(--font-body);
+  }
+  .read-more-btn:hover { text-decoration: underline; }
+
+  /* Inline card editor */
+  .card-editing { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .inline-editor-wrap { display: none; flex-direction: column; gap: 0; }
+  .card-editing .inline-editor-wrap { display: flex; }
+  .card-editing .card-content-wrap { display: none; }
+  .card-editing .card-tags { display: none; }
+  .inline-toolbar {
+    display: flex; flex-wrap: wrap; gap: 1px;
+    padding: 5px 8px; border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border); background: #fafaf8;
+  }
+  .inline-editor {
+    min-height: 80px; max-height: 50vh; overflow-y: auto;
+    padding: 10px 14px; outline: none;
+    font-family: var(--font-body); font-size: 14.5px;
+    line-height: 1.65; color: var(--text); background: var(--surface);
+  }
+  .inline-editor p { margin: 0; }
+  .inline-editor b, .inline-editor strong { font-weight: 600; }
+  .inline-editor i, .inline-editor em { font-style: italic; }
+  .inline-editor u { text-decoration: underline; }
+  .inline-editor s { text-decoration: line-through; }
+  .inline-editor code { background: #f0ede8; padding: 1px 5px; border-radius: 4px; font-size: 0.88em; font-family: monospace; }
+  .inline-editor blockquote { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--text-soft); }
+  .inline-editor ul, .inline-editor ol { padding-left: 20px; }
+  .inline-editor a { color: var(--accent); }
+  .inline-edit-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 12px; border-top: 1px solid var(--border); background: #fafaf8;
+  }
+
+  /* ── Card delete button (danger) ───────────────────────────────── */
+  .card-action-btn.danger:hover { background: #fde8e8; color: var(--danger); }
+
+
+
+  /* ── Settings page ──────────────────────────────────────────────── */
+  #settings-page {
+    display: none; padding: 8px 0;
+  }
+  #settings-page.active { display: block; }
+  .settings-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .settings-section-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+    text-transform: uppercase; color: var(--muted);
+    padding: 12px 16px 8px;
+  }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-top: 1px solid var(--border); gap: 16px;
+  }
+  .settings-row:first-of-type { border-top: none; }
+  .settings-label { font-size: 14px; color: var(--text); font-weight: 400; }
+  .settings-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .settings-control { flex-shrink: 0; }
+
+  /* Toggle switch */
+  .toggle {
+    position: relative; width: 40px; height: 22px; cursor: pointer;
+    display: inline-block; flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute; inset: 0; border-radius: 11px;
+    background: var(--border); transition: background 0.2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--accent); }
+  .toggle-thumb {
+    position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+  /* Range slider */
+  .settings-slider {
+    width: 140px; accent-color: var(--accent);
+  }
+  .slider-val {
+    font-size: 12px; color: var(--muted); min-width: 36px; text-align: right;
+  }
+
+  /* Theme grid */
+  .theme-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 12px 16px;
+  }
+  .theme-swatch {
+    width: 36px; height: 36px; border-radius: 8px; cursor: pointer;
+    border: 2px solid transparent; transition: all 0.15s;
+    position: relative;
+  }
+  .theme-swatch.active { border-color: var(--text); transform: scale(1.1); }
+  .theme-swatch:hover { transform: scale(1.08); }
+
+  /* API key input */
+  .settings-input {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-size: 13px; font-family: monospace;
+    background: var(--bg); color: var(--text); outline: none;
+    margin-top: 8px;
+  }
+  .settings-input:focus { border-color: var(--accent); }
+  .settings-save-btn {
+    margin-top: 8px; background: var(--accent); color: #fff;
+    border: none; border-radius: 7px; padding: 6px 16px;
+    font-size: 13px; cursor: pointer; font-family: var(--font-body);
+  }
+  .settings-save-btn:hover { background: #a96d32; }
+
+  /* ── Mobile ─────────────────────────────────────────────────────── */
+  @media (max-width: 700px) {
+    :root { font-size: var(--mobile-font-size, 15px); }
+    .card-content { font-size: var(--mobile-font-size, 15px); }
+    /* Defensive: ensure content never gets desktop margin on mobile,
+       even if JS briefly applies sidebar-visible due to viewport glitch */
+    #content.sidebar-visible { margin-left: 0; }
+    #sidebar { transform: translateX(-100%); }
+    #sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(44,40,37,0.15); }
+    #menu-toggle { display: flex; }
+    main { padding: 12px 12px 80px; }
+    .card-actions { opacity: 1; }
+    #sidebar-overlay {
+      display: none; position: fixed; inset: 0; z-index: 49;
+      background: rgba(44,40,37,0.3);
+    }
+    #sidebar-overlay.open { display: block; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">noteflow</div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-view="all">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        All notes
+      </button>
+      <button class="nav-item" data-view="starred">
+        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Starred
+      </button>
+      <button class="nav-item" data-view="hidden">
+        <svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        Hidden
+      </button>
+      <button class="nav-item" data-view="archived">
+        <svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+        Archive
+      </button>
+      <button class="nav-item" data-view="shared">
+        <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Shared
+      </button>
+      <div class="nav-section-label">Library</div>
+      <button class="nav-item" data-view="attachments">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Attachments
+      </button>
+      <div class="nav-spacer"></div>
+      <div style="border-top:1px solid var(--border);margin:0 0 4px"></div>
+      <button class="nav-item" data-view="settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+
+    </nav>
+  </aside>
+  <div id="sidebar-overlay"></div>
+
+  <!-- Main content -->
+  <div id="content">
+    <header>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="icon-btn" id="menu-toggle">
+          <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;pointer-events:none"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span class="header-title" id="header-title">All notes</span>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn" id="btn-search" title="Search" style="display:none">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Composer (only shown for relevant views) -->
+      <div id="composer">
+        <div class="toolbar">
+          <button class="tb-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+          <button class="tb-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+          <button class="tb-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+          <button class="tb-btn" data-cmd="strikeThrough" title="Strikethrough">
+            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><path d="M16 6C16 6 14.5 4 12 4C9.5 4 7 5.5 7 8C7 10.5 9 11.5 12 12"/><path d="M8 18C8 18 9.5 20 12 20C14.5 20 17 18.5 17 16C17 13.5 15 12.5 12 12"/></svg>
+          </button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn" data-cmd="h1" title="Heading 1"><span style="font-size:10px;font-weight:700">H1</span></button>
+          <button class="tb-btn" data-cmd="h2" title="Heading 2"><span style="font-size:10px;font-weight:700">H2</span></button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn" data-cmd="insertUnorderedList" title="Bullet list">
+            <svg viewBox="0 0 24 24"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg>
+          </button>
+          <button class="tb-btn" data-cmd="insertOrderedList" title="Numbered list">
+            <svg viewBox="0 0 24 24"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4" stroke="currentColor"/><path d="M4 10h2" stroke="currentColor"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" stroke="currentColor"/></svg>
+          </button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn" data-cmd="quote" title="Blockquote">
+            <svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>
+          </button>
+          <button class="tb-btn" data-cmd="code" title="Inline code">
+            <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </button>
+          <button class="tb-btn" data-cmd="link" title="Insert link">
+            <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </button>
+        </div>
+        <div id="editor" contenteditable="true" data-placeholder="What's on your mind?"></div>
+        <div id="image-preview-area"></div>
+        <div class="composer-footer">
+          <div class="composer-left">
+            <button class="attach-btn" id="attach-btn">
+              <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              Attach file
+            </button>
+            <input type="file" id="file-input" accept="*/*" multiple style="display:none">
+          </div>
+          <button class="save-btn" id="save-btn">Save</button>
+        </div>
+      </div>
+
+      <!-- Search bar -->
+      <div id="search-bar" class="visible">
+        <svg id="search-icon" viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="search-input" placeholder="Search notes…" autocomplete="off">
+        <button id="search-clear">✕</button>
+      </div>
+
+      <div id="feed"></div>
+      <div id="load-more" style="display:none">
+        <button class="load-more-btn" id="load-more-btn">Load more</button>
+      </div>
+      <div id="infinite-sentinel" style="height:1px"></div>
+
+      <!-- Settings page -->
+      <div id="settings-page">
+        <div class="settings-section">
+          <div class="settings-section-title">Account</div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Signed in as</div>
+              <div class="settings-desc" id="account-jwt-email" style="font-family:monospace">—</div>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Data account</div>
+              <div class="settings-desc" id="account-user-id" style="font-family:monospace">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Feed</div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Infinite scroll</div>
+              <div class="settings-desc">Automatically load more notes when scrolling</div>
+            </div>
+            <div class="settings-control">
+              <label class="toggle">
+                <input type="checkbox" id="setting-infinite-scroll">
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Note max height</div>
+              <div class="settings-desc">Clamp long notes — tap to expand</div>
+            </div>
+            <div class="settings-control" style="display:flex;align-items:center;gap:8px">
+              <input type="range" class="settings-slider" id="setting-max-height" min="0" max="800" step="50" value="0">
+              <span class="slider-val" id="setting-max-height-val">Off</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Note column width</div>
+              <div class="settings-desc">Max width of the feed — scales down on smaller screens</div>
+            </div>
+            <div class="settings-control" style="display:flex;align-items:center;gap:8px">
+              <input type="range" class="settings-slider" id="setting-feed-width" min="400" max="1000" step="50" value="700">
+              <span class="slider-val" id="setting-feed-width-val">700px</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Mobile text size</div>
+              <div class="settings-desc">Base font size on phones and tablets (12–22px)</div>
+            </div>
+            <div class="settings-control" style="display:flex;align-items:center;gap:8px">
+              <input type="range" class="settings-slider" id="setting-mobile-font" min="12" max="22" step="1" value="15">
+              <span class="slider-val" id="setting-mobile-font-val">15px</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Attachments per page</div>
+              <div class="settings-desc">Max items shown in Attachments view</div>
+            </div>
+            <div class="settings-control" style="display:flex;align-items:center;gap:8px">
+              <input type="range" class="settings-slider" id="setting-att-per-page" min="9" max="100" step="3" value="27">
+              <span class="slider-val" id="setting-att-per-page-val">27</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Theme</div>
+          <div class="theme-grid" id="theme-grid"></div>
+        </div>
+
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Share modal -->
+<div class="modal-backdrop" id="share-modal">
+  <div class="modal">
+    <h3>Share note</h3>
+    <div id="share-current-vis" style="font-size:12px;color:var(--muted);margin-bottom:12px"></div>
+    <div class="modal-row">
+      <span class="modal-label">Visibility</span>
+      <select id="share-vis" style="flex:1;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px;font-family:var(--font-body);background:var(--bg);color:var(--text);outline:none">
+        <option value="PRIVATE">Private</option>
+        <option value="PUBLIC">Public</option>
+      </select>
+    </div>
+    <div id="share-link-wrap" style="display:none">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Share link</div>
+      <div class="share-link-row">
+        <input type="text" id="share-link-input" readonly>
+        <button class="copy-btn" id="copy-link-btn">Copy</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="share-cancel">Cancel</button>
+      <button class="btn-primary" id="share-save">Update</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Lightbox -->
+<div id="lightbox">
+  <button id="lightbox-close">✕</button>
+  <button id="lightbox-prev">&#8249;</button>
+  <img id="lightbox-img" src="" alt="" style="display:none">
+  <div id="lightbox-content" style="display:none;width:90vw;max-width:960px;height:85vh;background:#fff;border-radius:12px;overflow:hidden;flex-direction:column;"></div>
+  <button id="lightbox-next">&#8250;</button>
+  <div id="lightbox-counter"></div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// Configure marked to treat single newlines as <br> (matches Memos default rendering)
+marked.use({ breaks: true, gfm: true });
+
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const API_BASE      = 'https://noteflow-api.jeppesen.cc/api';
+const SHARE_BASE    = 'https://notes.jeppesen.cc';
+let ANTHROPIC_KEY   = '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';
+const CLAUDE_MODEL  = 'claude-haiku-4-5-20251001';
+const PAGE_SIZE     = 20;
+const SPECIAL_TAGS  = ['hidden', 'starred'];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let allMemos      = [];
+let nextCursor    = null;  // NoteFlow v2 uses cursor (created_at timestamp), not pageToken
+let currentView   = 'all';
+let pendingImages = [];
+let shareTargetMemo = null;
+let editTargetMemo  = null;
+let searchQuery     = '';
+
+// ── Settings (persisted in localStorage) ─────────────────────────────────────
+const SETTINGS_KEY = 'memostack_settings';
+let settings = {
+  infiniteScroll: false,
+  maxHeight: 0,         // 0 = off
+  theme: 'warm',
+  attachmentsPerPage: 27,  // default 27
+  feedMaxWidth: 700,         // px
+  mobileFontSize: 15,        // px, mobile only
+};
+function loadSettings() {
+  try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); if (s) settings = Object.assign(settings, s); } catch(e) {}
+}
+function applyMobileFontSize() {
+  document.documentElement.style.setProperty('--mobile-font-size', (settings.mobileFontSize || 15) + 'px');
+}
+function applyFeedWidth() {
+  document.documentElement.style.setProperty('--feed-max-width', (settings.feedMaxWidth || 700) + 'px');
+}
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+// Auth: read CF_Authorization cookie and forward as header to cross-subdomain API
+function getCFToken() {
+  const match = document.cookie.match(/CF_Authorization=([^;]+)/);
+  return match ? match[1] : null;
+}
+function authHeaders(extra) {
+  const h = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+  const token = getCFToken();
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  return h;
+}
+
+async function apiGet(path) {
+  const r = await fetch(API_BASE + path, {
+    credentials: 'omit',
+    headers: authHeaders()
+  });
+  if (!r.ok) throw new Error('GET ' + path + ' ' + r.status);
+  return r.json();
+}
+async function apiPatch(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: 'PATCH', credentials: 'omit',
+    headers: authHeaders(),
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('PATCH ' + r.status);
+  return r.json();
+}
+async function apiPost(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: 'POST', credentials: 'omit',
+    headers: authHeaders(),
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('POST ' + r.status);
+  return r.json();
+}
+async function apiDelete(path) {
+  const r = await fetch(API_BASE + path, {
+    method: 'DELETE', credentials: 'omit',
+    headers: authHeaders()
+  });
+  if (!r.ok) throw new Error('DELETE ' + r.status);
+  return r.json();
+}
+async function uploadAttachment(file, noteId) {
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  return apiPost('/attachments', {
+    note_id:  noteId,
+    filename: file.name,
+    type:     file.type || 'application/octet-stream',
+    content:  base64,
+  });
+}
+
+// Build the serving URL for a NoteFlow v2 attachment
+// Structure: { id: "a_abc123", filename: "image.png", mime_type: "image/png" }
+// Served at: /api/attachments/:id
+function attachmentUrl(att) {
+  if (!att) return '';
+  return API_BASE + '/attachments/' + att.id;
+}
+
+// Check if an attachment is an image based on its MIME type or filename
+function isImageAttachment(att) {
+  if (!att) return false;
+  const mime = (att.mime_type || att.type || '').toLowerCase();
+  if (mime && mime.startsWith('image/')) return true;
+  const fn = (att.filename || '').toLowerCase();
+  return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/.test(fn);
+}
+
+// ── AI ────────────────────────────────────────────────────────────────────────
+async function claudeVision(base64, mediaType) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL, max_tokens: 300,
+      system: `You analyze images and extract meaningful information. Content may be in Danish, English, or mixed.
+Describe what matters: key facts, numbers, names, prices, important text.
+Ignore boilerplate: navigation menus, cookie banners, legal disclaimers, generic UI labels.
+Be concise — 1 to 3 sentences max. Write in the same language as the main content.`,
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+        { type: 'text', text: 'What is the key information in this image?' }
+      ]}]
+    })
+  });
+  const d = await r.json();
+  return d.content?.[0]?.text?.trim() || '';
+}
+
+async function claudeTags(content) {
+  const stripped = content.replace(/#[\w\u00C0-\u024F-]+/g, '').replace(/<[^>]+>/g, '').trim();
+  if (stripped.length < 15) return [];
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL, max_tokens: 100,
+      system: `Tagging assistant for a personal note app. Content may be Danish, English, or mixed.
+Return 3-5 specific tags as a JSON array only. Example: ["opskrift","pasta","aftensmad"]
+- Lowercase, hyphens for spaces (e.g. "meeting-notes")
+- Specific not generic — avoid: note, misc, general, text
+- Never include: ${SPECIAL_TAGS.join(', ')}`,
+      messages: [{ role: 'user', content: stripped.slice(0, 1500) }]
+    })
+  });
+  const d = await r.json();
+  const raw = d.content?.[0]?.text?.trim() || '[]';
+  try { return JSON.parse(raw.replace(/```json|```/g, '').trim()); }
+  catch { return []; }
+}
+
+// ── Image handling ────────────────────────────────────────────────────────────
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onloadend = () => res({ base64: reader.result.split(',')[1], mediaType: file.type || 'image/jpeg' });
+    reader.onerror = rej;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addFile(file) {
+  const { base64, mediaType } = await fileToBase64(file);
+  const entry = { file, base64, mediaType, ocrText: null, ocrLoading: false };
+  if (mediaType.startsWith('image/')) {
+    entry.ocrLoading = true;
+    pendingImages.push(entry);
+    renderImagePreviews();
+    try {
+      entry.ocrText = await claudeVision(base64, mediaType) || null;
+    } catch(e) { entry.ocrText = null; }
+    entry.ocrLoading = false;
+    renderImagePreviews();
+  } else {
+    pendingImages.push(entry);
+    renderImagePreviews();
+  }
+}
+
+function renderImagePreviews() {
+  const area = document.getElementById('image-preview-area');
+  area.innerHTML = '';
+  pendingImages.forEach((img, i) => {
+    const wrap = document.createElement('div');
+    const isImage = img.mediaType.startsWith('image/');
+    if (isImage) {
+      wrap.className = 'img-preview-wrap';
+      const el = document.createElement('img');
+      el.src = 'data:' + img.mediaType + ';base64,' + img.base64;
+      wrap.appendChild(el);
+      const badge = document.createElement('div');
+      badge.className = 'ocr-badge';
+      badge.textContent = img.ocrLoading ? '…' : (img.ocrText ? '✓' : '');
+      if (img.ocrLoading || img.ocrText) wrap.appendChild(badge);
+    } else {
+      wrap.className = 'img-preview-wrap';
+      wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;width:auto;height:auto;padding:6px 10px;gap:6px;font-size:13px;max-width:180px';
+      const icon = document.createElement('span');
+      icon.textContent = fileIcon(img.mediaType);
+      const name = document.createElement('span');
+      name.textContent = img.file.name;
+      name.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px';
+      wrap.appendChild(icon);
+      wrap.appendChild(name);
+    }
+    const rm = document.createElement('button');
+    rm.className = 'img-remove'; rm.textContent = '✕';
+    rm.onclick = () => { pendingImages.splice(i, 1); renderImagePreviews(); };
+    wrap.appendChild(rm);
+    area.appendChild(wrap);
+  });
+}
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
+document.querySelector('.toolbar').addEventListener('mousedown', e => {
+  const btn = e.target.closest('.tb-btn');
+  if (!btn) return;
+  e.preventDefault();
+  const cmd = btn.dataset.cmd;
+  const editor = document.getElementById('editor');
+  editor.focus();
+
+  if (cmd === 'h1') { document.execCommand('formatBlock', false, 'h1'); return; }
+  if (cmd === 'h2') { document.execCommand('formatBlock', false, 'h2'); return; }
+  if (cmd === 'quote') { document.execCommand('formatBlock', false, 'blockquote'); return; }
+  if (cmd === 'code') {
+    const sel = window.getSelection();
+    const selectedText = sel.toString();
+    if (selectedText) {
+      document.execCommand('insertHTML', false, '<code>' + selectedText.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</code>');
+    }
+    return;
+  }
+  if (cmd === 'link') {
+    const sel = window.getSelection();
+    const selectedText = sel.toString();
+    const url = prompt('Enter URL:');
+    if (!url) return;
+    if (selectedText) {
+      document.execCommand('insertHTML', false, '<a href="' + url + '" target="_blank">' + selectedText + '</a>');
+    } else {
+      document.execCommand('insertHTML', false, '<a href="' + url + '" target="_blank">' + url + '</a>');
+    }
+    return;
+  }
+  document.execCommand(cmd, false, null);
+});
+
+// ── HTML → Markdown ───────────────────────────────────────────────────────────
+function htmlToMarkdown(html) {
+  return html
+    .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '# $1\n')
+    .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '## $1\n')
+    .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '### $1\n')
+    .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, '> $1\n')
+    .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, '**$1**')
+    .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, '**$1**')
+    .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, '*$1*')
+    .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, '*$1*')
+    .replace(/<u[^>]*>([\s\S]*?)<\/u>/gi, '$1') // underline has no standard markdown, keep text
+    .replace(/<s[^>]*>([\s\S]*?)<\/s>/gi, '~~$1~~')
+    .replace(/<strike[^>]*>([\s\S]*?)<\/strike>/gi, '~~$1~~')
+    .replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, '`$1`')
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
+    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n')
+    .replace(/<ul[^>]*>|<\/ul>/gi, '\n')
+    .replace(/<ol[^>]*>|<\/ol>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '$1\n')
+    .replace(/<div[^>]*>([\s\S]*?)<\/div>/gi, '$1\n')
+    .replace(/<hr\s*\/?>/gi, '\n---\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+    .replace(/&nbsp;/g,' ').replace(/&#39;/g,"'").replace(/&quot;/g,'"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const editor = document.getElementById('editor');
+  const html = editor.innerHTML.trim();
+  if (!html || html === '<br>') return;
+
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    let content = htmlToMarkdown(html);
+
+    // AI tags
+    toast('Tagging…');
+    const suggestedTags = await claudeTags(content);
+    const existingTags = (content.match(/#[\w\u00C0-\u024F-]+/g) || []).map(t => t.slice(1).toLowerCase());
+    const newTags = suggestedTags.filter(t => !existingTags.includes(t) && !SPECIAL_TAGS.includes(t));
+    if (newTags.length) {
+      content += '\n\n<!-- tags -->\n<details><summary>🏷️ Tags</summary>\n\n' +
+        newTags.map(t => '#' + t).join(' ') + '\n\n</details>';
+    }
+
+    // Auto-tag if creating from starred/hidden view
+    if (currentView === 'starred' && !content.includes('#starred')) content += '\n\n#starred';
+    if (currentView === 'hidden'  && !content.includes('#hidden'))  content += '\n\n#hidden';
+
+    // Create the note first, then attach files
+    const body = { content: content.trim(), visibility: 'PRIVATE' };
+    const result = await apiPost('/notes', body);
+    const newMemo = result.note;
+
+    // Upload pending images now that we have the note ID
+    for (const img of pendingImages) {
+      try {
+        const attResult = await uploadAttachment(img.file || img, newMemo.id);
+        if (attResult.attachment) {
+          if (!newMemo.attachments) newMemo.attachments = [];
+          // indexed=true means done, indexed=false+indexable means failed
+          attResult.attachment._indexed = attResult.indexed;
+          newMemo.attachments.push(attResult.attachment);
+        }
+      } catch(uploadErr) {
+        console.warn('Image upload failed:', uploadErr);
+      }
+    }
+    allMemos.unshift(newMemo);
+    editor.innerHTML = '';
+    pendingImages = [];
+    renderImagePreviews();
+    renderFeed();
+    toast('Saved ✓');
+  } catch(err) {
+    console.error(err);
+    toast('Error: ' + err.message);
+  }
+
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+});
+
+// ── Load notes ────────────────────────────────────────────────────────────────
+async function loadMemos(append = false) {
+  try {
+    const qs = new URLSearchParams({ pageSize: PAGE_SIZE });
+    if (currentView === 'archived') qs.set('filter', 'archived');
+    else if (currentView === 'starred') qs.set('filter', 'starred');
+    else if (currentView === 'hidden')  qs.set('filter', 'hidden');
+    else if (currentView === 'shared')  qs.set('filter', 'shared');
+    if (append && nextCursor) qs.set('cursor', nextCursor);
+
+    const data = await apiGet('/notes?' + qs);
+    const fetched = data.notes || [];
+    if (append) {
+      const existingIds = new Set(allMemos.map(m => m.id));
+      allMemos = allMemos.concat(fetched.filter(m => !existingIds.has(m.id)));
+    } else {
+      allMemos = fetched;
+    }
+    nextCursor = data.nextCursor || null;
+    document.getElementById('load-more').style.display = nextCursor ? 'block' : 'none';
+    renderFeed(append);
+  } catch(err) {
+    console.error(err);
+    toast('Failed to load notes');
+  }
+}
+
+// Fetch all notes (used by Attachments view)
+async function fetchAllMemos() {
+  const all = [];
+  let cursor = null;
+  do {
+    const qs = new URLSearchParams({ pageSize: 50 });
+    if (cursor) qs.set('cursor', cursor);
+    const data = await apiGet('/notes?' + qs);
+    all.push(...(data.notes || []));
+    cursor = data.nextCursor || null;
+  } while (cursor);
+  return all;
+}
+
+// ── Render feed ───────────────────────────────────────────────────────────────
+function getViewTitle(view) {
+  return { all:'All notes', starred:'Starred', hidden:'Hidden', archived:'Archive', shared:'Shared', attachments:'Attachments' }[view] || 'Notes';
+}
+
+// ── Archive / Delete ──────────────────────────────────────────────────────────
+async function toggleArchive(memo) {
+  const isArchived = memo.archived === 1;
+  try {
+    const result = await apiPatch('/notes/' + memo.id, { archived: !isArchived });
+    const updated = result.note;
+    const idx = allMemos.findIndex(m => m.id === memo.id);
+    if (idx !== -1) {
+      if (!isArchived) allMemos.splice(idx, 1);
+      else allMemos[idx] = updated;
+    }
+    renderFeed();
+    toast(isArchived ? 'Restored from archive' : 'Archived');
+  } catch(err) { toast('Error: ' + err.message); }
+}
+
+async function confirmDelete(memo) {
+  if (!confirm('Permanently delete this note? This cannot be undone.')) return;
+  try {
+    await apiDelete('/notes/' + memo.id);
+    allMemos = allMemos.filter(m => m.id !== memo.id);
+    renderFeed();
+    toast('Deleted');
+  } catch(err) { toast('Error: ' + err.message); }
+}
+
+async function deleteAllArchived() {
+  const count = allMemos.length;
+  if (!confirm('Permanently delete all ' + count + ' archived notes? This cannot be undone.')) return;
+  toast('Deleting…');
+  let deleted = 0;
+  for (const memo of [...allMemos]) {
+    try {
+      await apiDelete('/notes/' + memo.id);
+      allMemos = allMemos.filter(m => m.id !== memo.id);
+      deleted++;
+    } catch(e) {}
+  }
+  renderFeed();
+  toast('Deleted ' + deleted + ' notes');
+}
+
+// Inline editing — handled per-card in buildCard
+
+function renderFeed(appendMode = false) {
+  const feed = document.getElementById('feed');
+
+  if (!appendMode) {
+    feed.innerHTML = '';
+
+    // Hide composer on non-writing views
+    const showComposer = ['all', 'starred', 'hidden'].includes(currentView);
+    document.getElementById('composer').style.display = showComposer ? '' : 'none';
+
+    // Archive view: inject "Delete all" toolbar
+    const existingDeleteAll = document.getElementById('delete-all-bar');
+    if (existingDeleteAll) existingDeleteAll.remove();
+    if (currentView === 'archived' && allMemos.length > 0) {
+      const bar = document.createElement('div');
+      bar.id = 'delete-all-bar';
+      bar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:10px';
+      const btn = document.createElement('button');
+      btn.style.cssText = 'background:none;border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:var(--font-body);transition:all 0.15s';
+      btn.textContent = '🗑 Delete all archived';
+      btn.addEventListener('mouseenter', () => { btn.style.background = 'var(--danger)'; btn.style.color = '#fff'; });
+      btn.addEventListener('mouseleave', () => { btn.style.background = 'none'; btn.style.color = 'var(--danger)'; });
+      btn.addEventListener('click', deleteAllArchived);
+      bar.appendChild(btn);
+      document.getElementById('feed').before(bar);
+    }
+  }
+
+  // Deduplicate by memo name (guards against double-appends from pagination)
+  const _seen = new Set();
+  const _deduped = allMemos.filter(m => {
+    if (_seen.has(m.id)) return false;
+    _seen.add(m.id);
+    return true;
+  });
+
+  let visible = _deduped.filter(m => {
+    const tags = m.tags || [];
+    const isHidden  = tags.includes('hidden');
+    const isStarred = tags.includes('starred');
+    const isShared  = m.visibility === 'PUBLIC' || m.visibility === 'PROTECTED';
+    const hasAttachments = m.attachments && m.attachments.length > 0;
+
+    if (currentView === 'all')              { if (isHidden) return false; }
+    else if (currentView === 'starred')     { if (!isStarred) return false; }
+    else if (currentView === 'hidden')      { if (!isHidden) return false; }
+    else if (currentView === 'archived')    { /* filtered by API */ }
+    else if (currentView === 'shared')      { if (!isShared) return false; }
+    else if (currentView === 'attachments') { if (!hasAttachments) return false; }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (m.content || '').toLowerCase().includes(q) ||
+             (m.tags || []).some(t => t.toLowerCase().includes(q));
+    }
+    return true;
+  });
+
+  if (currentView === 'attachments') {
+    renderAttachmentsGallery(feed, visible);
+    const lm = document.getElementById('load-more');
+    if (lm) lm.style.display = (nextCursor && !settings.infiniteScroll) ? 'block' : 'none';
+    return;
+  }
+
+  if (!appendMode && visible.length === 0) {
+    feed.innerHTML = '<div class="empty-state">No notes here yet.</div>';
+    return;
+  }
+
+  // In append mode, only render the new cards (those not already in the DOM)
+  const existingIds = new Set([...feed.querySelectorAll('[data-memo-name]')].map(el => el.dataset.memoName));
+  const toRender = appendMode ? visible.filter(m => !existingIds.has(m.id)) : visible;
+  toRender.forEach(memo => feed.appendChild(buildCard(memo)));
+
+  const lm = document.getElementById('load-more');
+  if (lm) lm.style.display = (nextCursor && !settings.infiniteScroll) ? 'block' : 'none';
+}
+
+// ── Build card ────────────────────────────────────────────────────────────────
+// ── Apply max height to card content ─────────────────────────────────────────
+function applyMaxHeight(wrap) {
+  if (!settings.maxHeight || settings.maxHeight === 0) {
+    wrap.style.maxHeight = '';
+    wrap.classList.remove('clamped');
+    const existing = wrap.parentNode?.querySelector('.read-more-btn');
+    if (existing) existing.remove();
+    return;
+  }
+  wrap.style.maxHeight = settings.maxHeight + 'px';
+  requestAnimationFrame(() => {
+    const inner = wrap.querySelector('.card-content');
+    if (inner && inner.scrollHeight > settings.maxHeight) {
+      wrap.classList.add('clamped');
+      if (!wrap.parentNode?.querySelector('.read-more-btn')) {
+        const btn = document.createElement('button');
+        btn.className = 'read-more-btn';
+        btn.textContent = 'Show more';
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          wrap.style.maxHeight = '';
+          wrap.classList.remove('clamped');
+          btn.remove();
+        });
+        wrap.insertAdjacentElement('afterend', btn);
+      }
+    }
+  });
+}
+
+function renderAttachmentsGallery(feed, memos) {
+  if (!memos.length) {
+    feed.innerHTML = '<div class="empty-state">No attachments found.</div>';
+    return;
+  }
+  const gallery = document.createElement('div');
+  gallery.className = 'att-gallery';
+  // Flatten all attachments and apply per-page limit
+  const _allAtts = [];
+  memos.forEach(memo => { (memo.attachments || []).forEach(att => { if (att.id) _allAtts.push({ att, memo }); }); });
+  const _limit = settings.attachmentsPerPage || 27;
+  _allAtts.slice(0, _limit).forEach(({ att, memo }) => {
+      if (!att.id) return;
+      const url = attachmentUrl(att);
+      const fname = att.filename || att.id || 'file';
+      const mime = att.mime_type || att.type || '';
+      const item = document.createElement('div');
+      item.className = 'att-gallery-item';
+
+      if (isImageAttachment(att)) {
+        const img = document.createElement('img');
+        img.className = 'att-gallery-img';
+        img.alt = fname;
+        img.style.opacity = '0.4';
+        fetch(url, { credentials: 'omit', headers: authHeaders() })
+          .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+          .then(blob => { img.src = URL.createObjectURL(blob); img.style.opacity = '1'; img._blobUrl = img.src; })
+          .catch(() => { img.style.opacity = '0.3'; });
+        img.addEventListener('click', () => { if (img._blobUrl) openLightbox(img._blobUrl, [img._blobUrl]); });
+        item.appendChild(img);
+      } else {
+        const icon = document.createElement('div');
+        icon.className = 'att-gallery-icon';
+        // Show emoji icon + filename hint
+        const mimeIcon = fileIcon(mime);
+        icon.innerHTML = '<div style="font-size:36px">' + mimeIcon + '</div><div style="font-size:10px;color:var(--muted);margin-top:4px;padding:0 6px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">' + escHtml(fname) + '</div>';
+        icon.style.cssText = 'cursor:pointer;flex-direction:column';
+        icon.title = 'Download ' + fname;
+        icon.addEventListener('click', async () => {
+          try {
+            const r = await fetch(url, { credentials: 'include' });
+            if (!r.ok) throw new Error('Download failed');
+            const blob = await r.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl; a.download = fname; a.click();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+          } catch(e) { toast('Download failed: ' + e.message); }
+        });
+        item.appendChild(icon);
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'att-gallery-meta';
+      const name = document.createElement('div');
+      name.className = 'att-gallery-name';
+      name.title = fname;
+      name.textContent = fname;
+      meta.appendChild(name);
+
+      // Link back to originating note
+      const noteDate = formatDate(memo.created_at ? new Date(memo.created_at * 1000).toISOString() : null);
+      const link = document.createElement('div');
+      link.className = 'att-gallery-link';
+      link.textContent = '↗ Note from ' + noteDate;
+      link.addEventListener('click', e => {
+        e.stopPropagation();
+        // Switch to all notes view and scroll to the memo
+        switchView('all');
+        setTimeout(() => {
+          const el = document.querySelector('[data-memo-name="' + memo.id + '"]');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 600);
+      });
+      meta.appendChild(link);
+      item.appendChild(meta);
+      gallery.appendChild(item);
+  });
+  feed.appendChild(gallery);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fileIcon(mime) {
+  if (mime.startsWith('image/'))  return '🖼️';
+  if (mime.startsWith('video/'))  return '🎥';
+  if (mime.startsWith('audio/'))  return '🎵';
+  if (mime.startsWith('text/'))   return '📝';
+  if (mime.includes('pdf'))       return '📄';
+  if (mime.includes('wordprocessingml') || mime.includes('msword'))          return '📝';
+  if (mime.includes('spreadsheetml') || mime.includes('excel'))              return '📊';
+  if (mime.includes('presentationml') || mime.includes('powerpoint'))        return '📊';
+  if (mime.includes('opendocument.text'))                                     return '📝';
+  if (mime.includes('opendocument.spreadsheet'))                              return '📊';
+  if (mime.includes('opendocument.presentation'))                             return '📊';
+  if (mime.includes('zip') || mime.includes('archive') || mime.includes('compressed')) return '🗜️';
+  return '📎';
+}
+function buildCard(memo) {
+  const tags     = memo.tags || [];
+  const isStarred = tags.includes('starred');
+  const isHidden  = tags.includes('hidden');
+  const isPinned  = memo.pinned;
+  const isShared  = memo.visibility === 'PUBLIC';
+
+  const card = document.createElement('div');
+  card.className = 'memo-card' +
+    (isStarred ? ' starred' : '') +
+    (isHidden  ? ' hidden-note' : '') +
+    (isPinned  ? ' pinned' : '');
+  card.dataset.memoName = memo.id;
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'card-header';
+
+  const meta = document.createElement('div');
+  meta.className = 'card-meta';
+  const date = document.createElement('span');
+  date.className = 'card-date';
+  date.textContent = formatDate(memo.created_at ? new Date(memo.created_at * 1000).toISOString() : null);
+  meta.appendChild(date);
+
+  const badges = document.createElement('div');
+  badges.className = 'card-badges';
+  if (isPinned) badges.innerHTML += '<span class="badge badge-pinned">📌</span>';
+  if (isShared) badges.innerHTML += '<span class="badge badge-pinned">🔗</span>';
+  meta.appendChild(badges);
+  header.appendChild(meta);
+
+  // Action buttons
+  const actions = document.createElement('div');
+  actions.className = 'card-actions';
+
+  // Star
+  const starBtn = makeActionBtn(
+    '<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    isStarred ? 'Unstar' : 'Star'
+  );
+  if (isStarred) starBtn.classList.add('star-active');
+  starBtn.addEventListener('click', e => { e.stopPropagation(); toggleTag(memo, 'starred'); });
+  actions.appendChild(starBtn);
+
+  // Hide
+  const hideBtn = makeActionBtn(
+    isHidden
+      ? '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+      : '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>',
+    isHidden ? 'Unhide' : 'Hide'
+  );
+  hideBtn.addEventListener('click', e => { e.stopPropagation(); toggleTag(memo, 'hidden'); });
+  actions.appendChild(hideBtn);
+
+  // Share
+  const shareBtn = makeActionBtn(
+    '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+    'Share'
+  );
+  shareBtn.addEventListener('click', e => { e.stopPropagation(); openShareModal(memo); });
+  actions.appendChild(shareBtn);
+
+  if (currentView === 'archived') {
+    // In archive view: show Unarchive + Delete
+    const unarchiveBtn = makeActionBtn('<svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>', 'Restore');
+    unarchiveBtn.addEventListener('click', e => { e.stopPropagation(); toggleArchive(memo); });
+    actions.appendChild(unarchiveBtn);
+
+    const deleteBtn = makeActionBtn('<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>', 'Delete permanently');
+    deleteBtn.classList.add('danger');
+    deleteBtn.addEventListener('click', e => { e.stopPropagation(); confirmDelete(memo); });
+    actions.appendChild(deleteBtn);
+  } else {
+    // Normal views: archive only
+    const archiveBtn = makeActionBtn('<svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>', 'Archive');
+    archiveBtn.addEventListener('click', e => { e.stopPropagation(); toggleArchive(memo); });
+    actions.appendChild(archiveBtn);
+  }
+
+  header.appendChild(actions);
+  card.appendChild(header);
+
+  // ── Inline editor ──────────────────────────────────────────────────
+  const inlineWrap = document.createElement('div');
+  inlineWrap.className = 'inline-editor-wrap';
+
+  // Inline toolbar (same buttons as main composer)
+  const inlineTb = document.createElement('div');
+  inlineTb.className = 'inline-toolbar';
+  inlineTb.innerHTML = `
+    <button class="tb-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+    <button class="tb-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+    <button class="tb-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+    <button class="tb-btn" data-cmd="strikeThrough" title="Strike"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><path d="M16 6C16 6 14.5 4 12 4C9.5 4 7 5.5 7 8C7 10.5 9 11.5 12 12"/><path d="M8 18C8 18 9.5 20 12 20C14.5 20 17 18.5 17 16C17 13.5 15 12.5 12 12"/></svg></button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" data-cmd="h1" title="H1"><span style="font-size:10px;font-weight:700">H1</span></button>
+    <button class="tb-btn" data-cmd="h2" title="H2"><span style="font-size:10px;font-weight:700">H2</span></button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" data-cmd="insertUnorderedList" title="Bullet"><svg viewBox="0 0 24 24"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg></button>
+    <button class="tb-btn" data-cmd="insertOrderedList" title="Numbered"><svg viewBox="0 0 24 24"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4" stroke="currentColor"/><path d="M4 10h2" stroke="currentColor"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" stroke="currentColor"/></svg></button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" data-cmd="quote" title="Quote"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg></button>
+    <button class="tb-btn" data-cmd="link" title="Link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>`;
+
+  inlineTb.addEventListener('mousedown', e => {
+    const btn = e.target.closest('.tb-btn');
+    if (!btn) return;
+    e.preventDefault();
+    inlineEditor.focus();
+    const cmd = btn.dataset.cmd;
+    if (cmd === 'h1') { document.execCommand('formatBlock', false, 'h1'); return; }
+    if (cmd === 'h2') { document.execCommand('formatBlock', false, 'h2'); return; }
+    if (cmd === 'quote') { document.execCommand('formatBlock', false, 'blockquote'); return; }
+    if (cmd === 'link') {
+      const url = prompt('URL:');
+      if (url) document.execCommand('insertHTML', false, '<a href="' + url + '">' + (document.getSelection().toString() || url) + '</a>');
+      return;
+    }
+    document.execCommand(cmd, false, null);
+  });
+  inlineWrap.appendChild(inlineTb);
+
+  const inlineEditor = document.createElement('div');
+  inlineEditor.className = 'inline-editor';
+  inlineEditor.contentEditable = 'true';
+  // Pre-fill with rendered HTML from markdown
+  const editableContent = (memo.content || '')
+    .replace(/<!-- tags -->[\s\S]*?<\/details>/gi, '')
+    .replace(/<!-- ocr -->[\s\S]*?<\/details>/gi, '')
+    .trim();
+  inlineEditor.innerHTML = marked.parse(editableContent);
+  inlineWrap.appendChild(inlineEditor);
+
+  // Footer: attach + cancel + save
+  const inlineFooter = document.createElement('div');
+  inlineFooter.className = 'inline-edit-footer';
+
+  const inlineLeft = document.createElement('div');
+  inlineLeft.style.cssText = 'display:flex;gap:6px;align-items:center';
+  const inlineAttachBtn = document.createElement('button');
+  inlineAttachBtn.className = 'attach-btn';
+  inlineAttachBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;pointer-events:none"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Attach';
+  const inlineFileInput = document.createElement('input');
+  inlineFileInput.type = 'file'; inlineFileInput.accept = '*/*'; inlineFileInput.multiple = true;
+  inlineFileInput.style.display = 'none';
+  inlineAttachBtn.addEventListener('click', () => inlineFileInput.click());
+  let inlinePendingFiles = [];
+  inlineFileInput.addEventListener('change', async e => {
+    for (const f of e.target.files) inlinePendingFiles.push(f);
+    inlineAttachBtn.textContent = '📎 ' + inlinePendingFiles.length + ' file(s)';
+    e.target.value = '';
+  });
+  inlineLeft.appendChild(inlineAttachBtn);
+  inlineLeft.appendChild(inlineFileInput);
+  inlineFooter.appendChild(inlineLeft);
+
+  const inlineRight = document.createElement('div');
+  inlineRight.style.cssText = 'display:flex;gap:6px';
+
+  const inlineCancelBtn = document.createElement('button');
+  inlineCancelBtn.className = 'btn-ghost';
+  inlineCancelBtn.style.fontSize = '12px';
+  inlineCancelBtn.textContent = 'Cancel';
+  inlineCancelBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    card.classList.remove('card-editing');
+    inlinePendingFiles = [];
+  });
+
+  const inlineSaveBtn = document.createElement('button');
+  inlineSaveBtn.className = 'btn-primary';
+  inlineSaveBtn.style.fontSize = '12px';
+  inlineSaveBtn.textContent = 'Save';
+  inlineSaveBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    inlineSaveBtn.disabled = true; inlineSaveBtn.textContent = 'Saving…';
+    try {
+      let content = htmlToMarkdown(inlineEditor.innerHTML);
+      // Upload any new attachments
+      const newAttNames = [];
+      for (const f of inlinePendingFiles) {
+        try { const a = await uploadAttachment(f); if (a.name) newAttNames.push(a.name); } catch(err) {}
+      }
+      // Merge with existing attachments
+      // In v2, attachments are stored separately — just update content
+      const patchBody = { content };
+      const result = await apiPatch('/notes/' + memo.id, patchBody);
+      const updated = result.note || result;
+      const idx = allMemos.findIndex(m => m.id === memo.id);
+      if (idx !== -1) allMemos[idx] = updated;
+      card.classList.remove('card-editing');
+      inlinePendingFiles = [];
+      renderFeed();
+      toast('Saved ✓');
+    } catch(err) { toast('Error: ' + err.message); }
+    inlineSaveBtn.disabled = false; inlineSaveBtn.textContent = 'Save';
+  });
+
+  inlineRight.appendChild(inlineCancelBtn);
+  inlineRight.appendChild(inlineSaveBtn);
+  inlineFooter.appendChild(inlineRight);
+  inlineWrap.appendChild(inlineFooter);
+  card.appendChild(inlineWrap);
+
+  // Double-click/double-tap to enter edit mode
+  card.addEventListener('dblclick', e => {
+    if (e.target.closest('.card-action-btn') || e.target.closest('.tag-pill')) return;
+    // Refresh editor content
+    const _ec = (memo.content || '')
+      .replace(/<!-- tags -->[\s\S]*?<\/details>/gi, '')
+      .replace(/<!-- ocr -->[\s\S]*?<\/details>/gi, '')
+      .trim();
+    inlineEditor.innerHTML = marked.parse(_ec);
+    inlinePendingFiles = [];
+    inlineAttachBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;pointer-events:none"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Attach';
+    card.classList.add('card-editing');
+    setTimeout(() => inlineEditor.focus(), 30);
+  });
+
+  // Content
+  const displayContent = (memo.content || '')
+    .replace(/<!-- tags -->[\s\S]*?<\/details>/gi, '')  // strip hidden tag metadata
+    // OCR block: keep as collapsible <details> but remove the HTML comment marker
+    .replace(/<!-- ocr -->\n/g, '')
+    .trim();
+
+  const contentWrap = document.createElement('div');
+  contentWrap.className = 'card-content-wrap';
+  const content = document.createElement('div');
+  content.className = 'card-content';
+  content.innerHTML = marked.parse(displayContent);
+  contentWrap.appendChild(content);
+  applyMaxHeight(contentWrap);
+  card.appendChild(contentWrap);
+
+  // Attachments
+  if (memo.attachments && memo.attachments.length) {
+    const attRow = document.createElement('div');
+    attRow.className = 'card-images';
+    memo.attachments.forEach(att => {
+      if (!att.id) return;
+      const url = attachmentUrl(att);
+      const mime = att.mime_type || att.type || '';
+      if (isImageAttachment(att)) {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.style.opacity = '0.4';
+        // Fetch with auth token so private attachments load
+        fetch(url, { credentials: 'omit', headers: authHeaders() })
+          .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+          .then(blob => {
+            img.src = URL.createObjectURL(blob);
+            img.style.opacity = '1';
+            img._blobUrl = img.src; // store for lightbox
+          })
+          .catch(() => { img.alt = att.filename || 'image'; img.style.opacity = '0.3'; });
+        img.addEventListener('click', () => {
+          if (!img._blobUrl) return;
+          // Collect all loaded blob URLs from this card's image row
+          const allUrls = Array.from(attRow.querySelectorAll('img'))
+            .map(i => i._blobUrl).filter(Boolean);
+          openLightbox(img._blobUrl, allUrls);
+        });
+        attRow.appendChild(img);
+      } else {
+        const fname = att.filename || att.id || 'file';
+        const ext = fname.split('.').pop().toLowerCase();
+        const isPdf     = mime === 'application/pdf' || ext === 'pdf';
+        const isVideo   = mime.startsWith('video/') || ['mp4','webm','mov','mkv'].includes(ext);
+        const isAudio   = mime.startsWith('audio/') || ['mp3','ogg','wav','flac','m4a'].includes(ext);
+        const isText    = mime.startsWith('text/') || ['txt','md','csv','json','xml','html','js','css'].includes(ext);
+        const isIndexed = ['docx','doc','xlsx','xls','odt','ods','odp'].includes(ext);
+        const canPreview = isPdf || isVideo || isAudio || isText || isIndexed;
+
+        const chip = document.createElement('button');
+        chip.className = 'file-chip' + (canPreview ? ' file-chip-preview' : '');
+        const isIndexing = att._indexing === true;
+        chip.innerHTML = fileIcon(mime) + ' <span>' + escHtml(fname) + '</span>' + (isIndexing ? ' <small style="opacity:0.6;font-size:10px">⏳</small>' : (canPreview ? ' <small style="opacity:0.5;font-size:10px">▶</small>' : ''));
+        chip.title = isIndexing ? 'Indexing for preview…' : (canPreview ? 'Preview ' + fname : 'Download ' + fname);
+
+        chip.addEventListener('click', async () => {
+          if (canPreview) {
+            openFilePreview(att, fname, mime, url, isPdf, isVideo, isAudio, isText, isIndexed);
+          } else {
+            chip.style.opacity = '0.6';
+            try {
+              const r = await fetch(url, { credentials: 'omit', headers: authHeaders() });
+              if (!r.ok) throw new Error('Download failed: ' + r.status);
+              const blob = await r.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl; a.download = fname; a.click();
+              setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+            } catch(e) { toast('Download failed: ' + e.message); }
+            chip.style.opacity = '1';
+          }
+        });
+        attRow.appendChild(chip);
+      }
+    });
+    if (attRow.children.length) card.appendChild(attRow);
+  }
+
+  // Tags (visible only)
+  const visibleTags = tags.filter(t => !SPECIAL_TAGS.includes(t));
+  if (visibleTags.length) {
+    const tagRow = document.createElement('div');
+    tagRow.className = 'card-tags';
+    visibleTags.forEach(t => {
+      const pill = document.createElement('span');
+      pill.className = 'tag-pill';
+      pill.textContent = '#' + t;
+      tagRow.appendChild(pill);
+    });
+    card.appendChild(tagRow);
+  }
+
+  return card;
+}
+
+function makeActionBtn(svgHtml, title) {
+  const btn = document.createElement('button');
+  btn.className = 'card-action-btn';
+  btn.title = title;
+  btn.innerHTML = svgHtml;
+  return btn;
+}
+
+// ── Toggle tag via API ────────────────────────────────────────────────────────
+async function toggleTag(memo, tag) {
+  const hasTag = /\B#/.test(memo.content) && memo.content.includes('#' + tag);
+  let content = memo.content;
+
+  if (hasTag) {
+    content = content.replace(new RegExp('\\s*#' + tag + '\\b', 'g'), '').trim();
+    // Remove empty tag block
+    content = content.replace(/\n*<!-- tags -->\n<details><summary>[^<]*<\/summary>\n\n\s*\n\n<\/details>/g, '').trim();
+  } else {
+    const marker = '<!-- tags -->';
+    const blockStart = content.indexOf(marker);
+    if (blockStart !== -1) {
+      const closePos = content.indexOf('</details>', blockStart);
+      if (closePos !== -1) {
+        content = content.slice(0, closePos) + ' #' + tag + '\n' + content.slice(closePos);
+      }
+    } else {
+      content += '\n\n' + marker + '\n<details><summary>🏷️ Tags</summary>\n\n#' + tag + '\n\n</details>';
+    }
+  }
+
+  try {
+    const result = await apiPatch('/notes/' + memo.id, { content });
+    const updated = result.note || result;
+    const idx = allMemos.findIndex(m => m.id === memo.id);
+    if (idx !== -1) allMemos[idx] = updated;
+    renderFeed();
+    toast(hasTag ? tag + ' removed' : '⭐ ' + tag);
+  } catch(err) {
+    toast('Error: ' + err.message);
+  }
+}
+
+// ── Share modal ───────────────────────────────────────────────────────────────
+function openShareModal(memo) {
+  shareTargetMemo = memo;
+  const vis = memo.visibility || 'PRIVATE';
+  document.getElementById('share-vis').value = vis;
+  document.getElementById('share-current-vis').textContent =
+    'Current: ' + { PRIVATE: 'Private', PUBLIC: 'Public' }[vis] || 'Private';
+
+  const linkWrap = document.getElementById('share-link-wrap');
+  if (vis !== 'PRIVATE') {
+    linkWrap.style.display = 'block';
+    document.getElementById('share-link-input').value = SHARE_BASE + '/note/' + memo.id;
+  } else {
+    linkWrap.style.display = 'none';
+  }
+  document.getElementById('share-modal').classList.add('open');
+}
+
+document.getElementById('share-vis').addEventListener('change', function() {
+  const linkWrap = document.getElementById('share-link-wrap');
+  if (this.value !== 'PRIVATE' && shareTargetMemo) {
+    linkWrap.style.display = 'block';
+    document.getElementById('share-link-input').value = SHARE_BASE + '/note/' + shareTargetMemo.id;
+  } else {
+    linkWrap.style.display = 'none';
+  }
+});
+
+document.getElementById('share-cancel').addEventListener('click', () => {
+  document.getElementById('share-modal').classList.remove('open');
+});
+
+document.getElementById('share-save').addEventListener('click', async () => {
+  if (!shareTargetMemo) return;
+  const vis = document.getElementById('share-vis').value;
+  try {
+    const result = await apiPatch('/notes/' + shareTargetMemo.id, { visibility: vis });
+    const updated = result.note || result;
+    const idx = allMemos.findIndex(m => m.id === shareTargetMemo.id);
+    if (idx !== -1) allMemos[idx] = updated;
+    document.getElementById('share-modal').classList.remove('open');
+    renderFeed();
+    toast('Visibility updated');
+  } catch(err) { toast('Error: ' + err.message); }
+});
+
+document.getElementById('copy-link-btn').addEventListener('click', () => {
+  const input = document.getElementById('share-link-input');
+  navigator.clipboard.writeText(input.value).then(() => toast('Link copied!')).catch(() => {
+    input.select(); document.execCommand('copy'); toast('Link copied!');
+  });
+});
+
+// ── Sidebar nav ───────────────────────────────────────────────────────────────
+function switchView(view) {
+  document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.remove('active'));
+  const item = document.querySelector('.nav-item[data-view="' + view + '"]');
+  if (item) item.classList.add('active');
+
+  const feedEl = document.getElementById('feed');
+  const settingsEl = document.getElementById('settings-page');
+  const composerEl = document.getElementById('composer');
+  const loadMoreEl = document.getElementById('load-more');
+
+  const searchBar = document.getElementById('search-bar');
+  if (view === 'settings') {
+    feedEl.style.display = 'none';
+    loadMoreEl.style.display = 'none';
+    composerEl.style.display = 'none';
+    if (searchBar) searchBar.classList.remove('visible');
+    settingsEl.classList.add('active');
+    document.getElementById('header-title').textContent = 'Settings';
+    currentView = 'settings';
+    return;
+  }
+  if (searchBar) searchBar.classList.add('visible');
+
+  settingsEl.classList.remove('active');
+  feedEl.style.display = '';
+  currentView = view;
+  document.getElementById('header-title').textContent = getViewTitle(view);
+  allMemos = [];
+  nextCursor = null;
+  if (view === 'attachments') {
+    // Fetch all pages so we don't miss older attachments
+    renderFeed(); // show loading state immediately
+    fetchAllMemos().then(all => {
+      allMemos = all;
+      renderFeed();
+    }).catch(err => toast('Failed to load attachments: ' + err.message));
+  } else {
+    loadMemos();
+  }
+}
+
+document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+  item.addEventListener('click', () => {
+    switchView(item.dataset.view);
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  });
+});
+
+// Mobile sidebar toggle
+document.getElementById('menu-toggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+});
+document.getElementById('sidebar-overlay').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+});
+
+// ── Load more + infinite scroll ──────────────────────────────────────────────
+document.getElementById('load-more-btn').addEventListener('click', () => loadMemos(true));
+
+// ── Search ────────────────────────────────────────────────────────────────────
+const searchInput = document.getElementById('search-input');
+const searchClear = document.getElementById('search-clear');
+searchInput.addEventListener('input', () => {
+  searchQuery = searchInput.value.trim();
+  searchClear.classList.toggle('visible', searchQuery.length > 0);
+  renderFeed();
+});
+searchClear.addEventListener('click', () => {
+  searchInput.value = ''; searchQuery = '';
+  searchClear.classList.remove('visible');
+  renderFeed();
+});
+
+// Hide search bar on non-feed views
+const _origSwitchView = switchView;
+
+let _loadingMore = false;
+const infiniteObserver = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && settings.infiniteScroll && nextCursor && currentView !== 'settings') {
+    if (_loadingMore) return;
+    _loadingMore = true;
+    loadMemos(true).finally(() => { _loadingMore = false; });
+  }
+}, { rootMargin: '200px' });
+infiniteObserver.observe(document.getElementById('infinite-sentinel'));
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+let lbImages = [];
+let lbIndex  = 0;
+
+function openLightbox(src, allSrcs) {
+  // Close any file preview first
+  document.getElementById('lightbox-content').classList.remove('open');
+  document.getElementById('lightbox-content').style.display = 'none';
+  const imgEl = document.getElementById('lightbox-img');
+  imgEl.style.display = '';
+
+  lbImages = allSrcs || [src];
+  lbIndex  = lbImages.indexOf(src);
+  if (lbIndex === -1) lbIndex = 0;
+  renderLightbox();
+  document.getElementById('lightbox').classList.add('open');
+}
+
+async function openFilePreview(att, fname, mime, url, isPdf, isVideo, isAudio, isText, isIndexed) {
+  const lb = document.getElementById('lightbox');
+  const imgEl = document.getElementById('lightbox-img');
+  const content = document.getElementById('lightbox-content');
+
+  // Hide image, show content panel
+  imgEl.style.display = 'none';
+  document.getElementById('lightbox-prev').classList.add('hidden');
+  document.getElementById('lightbox-next').classList.add('hidden');
+  document.getElementById('lightbox-counter').classList.add('hidden');
+
+  // Build content panel
+  content.innerHTML = '';
+  content.style.display = 'flex';
+  content.classList.add('open');
+
+  // Header with filename + download button
+  const header = document.createElement('div');
+  header.className = 'lb-file-header';
+  header.innerHTML = fileIcon(mime) + ' <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(fname) + '</span>';
+  const dlBtn = document.createElement('button');
+  dlBtn.textContent = '⬇ Download';
+  dlBtn.style.cssText = 'padding:4px 10px;font-size:12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0';
+  dlBtn.addEventListener('click', async () => {
+    try {
+      const r = await fetch(url, { credentials: 'omit', headers: authHeaders() });
+      const blob = await r.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = fname; a.click();
+    } catch(e) { toast('Download failed'); }
+  });
+  header.appendChild(dlBtn);
+  content.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'lb-file-body';
+  body.innerHTML = '<div class="lb-loading">Loading…</div>';
+  content.appendChild(body);
+
+  lb.classList.add('open');
+
+  try {
+    if (isPdf || isVideo || isAudio) {
+      const r = await fetch(url, { credentials: 'omit', headers: authHeaders() });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const blob = await r.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      body.innerHTML = '';
+      if (isPdf) {
+        const frame = document.createElement('iframe');
+        frame.src = blobUrl;
+        frame.title = fname;
+        body.appendChild(frame);
+      } else if (isVideo) {
+        const video = document.createElement('video');
+        video.controls = true; video.autoplay = false; video.preload = 'metadata';
+        video.src = blobUrl;
+        body.appendChild(video);
+      } else {
+        const audio = document.createElement('audio');
+        audio.controls = true; audio.preload = 'metadata';
+        audio.src = blobUrl;
+        body.style.cssText += 'display:flex;align-items:center;justify-content:center;padding:30px';
+        body.appendChild(audio);
+      }
+    } else if (isText) {
+      const r = await fetch(url, { credentials: 'omit', headers: authHeaders() });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const text = await r.text();
+      body.innerHTML = '';
+      const pre = document.createElement('div');
+      pre.className = 'lb-text';
+      pre.textContent = text;
+      body.appendChild(pre);
+    } else if (isIndexed) {
+      const data = await apiGet('/attachments/' + att.id + '/index');
+      body.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'lb-indexed';
+      if (data.text) {
+        div.innerHTML = '<h3>📄 Extracted content (via Claude)</h3>' + escHtml(data.text).replace(/\n/g, '<br>');
+      } else if (data.pending) {
+        div.innerHTML = '<h3 style="color:#bbb">⏳ Indexing in progress…</h3><p style="color:#999;font-size:13px">Claude is extracting the content of this document. Close and try again in a few seconds.</p>';
+      } else {
+        div.innerHTML = '<h3 style="color:#bbb">No preview available</h3><p style="color:#999;font-size:13px">This document type isn\'t supported for preview.</p>';
+      }
+      body.appendChild(div);
+    }
+  } catch(e) {
+    body.innerHTML = '<div class="lb-loading" style="color:#c00">Failed to load preview</div>';
+  }
+}
+
+function renderLightbox() {
+  _lbResetZoom();
+  const img     = document.getElementById('lightbox-img');
+  const prev    = document.getElementById('lightbox-prev');
+  const next    = document.getElementById('lightbox-next');
+  const counter = document.getElementById('lightbox-counter');
+  img.src = lbImages[lbIndex];
+  prev.classList.toggle('hidden', lbImages.length <= 1 || lbIndex === 0);
+  next.classList.toggle('hidden', lbImages.length <= 1 || lbIndex === lbImages.length - 1);
+  if (lbImages.length > 1) {
+    counter.textContent = (lbIndex + 1) + ' / ' + lbImages.length;
+    counter.classList.remove('hidden');
+  } else {
+    counter.classList.add('hidden');
+  }
+}
+
+document.getElementById('lightbox-prev').addEventListener('click', e => {
+  e.stopPropagation();
+  if (lbIndex > 0) { lbIndex--; renderLightbox(); }
+});
+document.getElementById('lightbox-next').addEventListener('click', e => {
+  e.stopPropagation();
+  if (lbIndex < lbImages.length - 1) { lbIndex++; renderLightbox(); }
+});
+function closeLightbox() {
+  _lbResetZoom();
+  const lb = document.getElementById('lightbox');
+  lb.classList.remove('open');
+  // Reset content panel and restore image element
+  const content = document.getElementById('lightbox-content');
+  content.classList.remove('open');
+  content.style.display = 'none';
+  content.innerHTML = '';
+  document.getElementById('lightbox-img').style.display = '';
+}
+document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+document.getElementById('lightbox').addEventListener('click', e => { if (e.target === e.currentTarget) closeLightbox(); });
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('open')) return;
+  if (e.key === 'ArrowLeft' && lbIndex > 0)                    { lbIndex--; renderLightbox(); }
+  if (e.key === 'ArrowRight' && lbIndex < lbImages.length - 1) { lbIndex++; renderLightbox(); }
+  if (e.key === 'Escape') closeLightbox();
+});
+
+// ── Lightbox pinch-zoom / drag / double-tap ───────────────────────────────────
+let _lbScale = 1, _lbTX = 0, _lbTY = 0;
+let _lbPinching = false, _lbPinchDist0 = 0;
+let _lbDragging = false, _lbDragOX = 0, _lbDragOY = 0;
+let _lbLastTap = 0;
+
+function _lbResetZoom() {
+  _lbScale = 1; _lbTX = 0; _lbTY = 0;
+  const img = document.getElementById('lightbox-img');
+  if (img) { img.style.transform = ''; img.style.cursor = 'zoom-in'; }
+}
+function _lbApplyZoom() {
+  const img = document.getElementById('lightbox-img');
+  img.style.transform = `translate(${_lbTX}px,${_lbTY}px) scale(${_lbScale})`;
+  img.style.cursor = _lbScale > 1 ? 'grab' : 'zoom-in';
+}
+
+(function() {
+  const el = document.getElementById('lightbox-img');
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      _lbPinching = true; _lbDragging = false;
+      _lbPinchDist0 = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY);
+    } else if (e.touches.length === 1) {
+      _lbDragging = true;
+      _lbDragOX = e.touches[0].clientX - _lbTX;
+      _lbDragOY = e.touches[0].clientY - _lbTY;
+      // Double-tap: toggle 2.5× zoom
+      const now = Date.now();
+      if (now - _lbLastTap < 280) {
+        e.preventDefault();
+        if (_lbScale > 1) _lbResetZoom(); else { _lbScale = 2.5; _lbApplyZoom(); }
+      }
+      _lbLastTap = now;
+    }
+  }, { passive: false });
+
+  el.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (e.touches.length === 2 && _lbPinching) {
+      const d = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY);
+      _lbScale = Math.min(8, Math.max(1, _lbScale * (d / _lbPinchDist0)));
+      _lbPinchDist0 = d;
+      if (_lbScale <= 1) { _lbTX = 0; _lbTY = 0; }
+      _lbApplyZoom();
+    } else if (e.touches.length === 1 && _lbDragging && _lbScale > 1) {
+      _lbTX = e.touches[0].clientX - _lbDragOX;
+      _lbTY = e.touches[0].clientY - _lbDragOY;
+      _lbApplyZoom();
+    }
+  }, { passive: false });
+
+  el.addEventListener('touchend', e => {
+    if (e.touches.length < 2) _lbPinching = false;
+    if (e.touches.length === 0) _lbDragging = false;
+    if (_lbScale < 1.08) _lbResetZoom(); // snap back if barely zoomed
+  });
+})();
+
+// ── Image attach ──────────────────────────────────────────────────────────────
+document.getElementById('attach-btn').addEventListener('click', () => document.getElementById('file-input').click());
+
+// Expand composer on focus
+document.getElementById('editor').addEventListener('focus', () => {
+  document.getElementById('composer').classList.add('expanded');
+});
+document.getElementById('editor').addEventListener('blur', () => {
+  // Delay so toolbar clicks still register
+  setTimeout(() => {
+    if (!document.getElementById('editor').matches(':focus') &&
+        !document.getElementById('composer').matches(':focus-within')) {
+      if (!document.getElementById('editor').innerHTML.trim()) {
+        document.getElementById('composer').classList.remove('expanded');
+      }
+    }
+  }, 200);
+});
+document.getElementById('file-input').addEventListener('change', async e => {
+  for (const file of e.target.files) await addFile(file);
+  e.target.value = '';
+});
+document.getElementById('editor').addEventListener('paste', async e => {
+  const items = e.clipboardData?.items || [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      await addFile(item.getAsFile());
+    }
+  }
+});
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ── Date ──────────────────────────────────────────────────────────────────────
+function formatDate(iso) {
+  const d = new Date(iso), now = new Date(), diff = now - d;
+  if (diff < 60000)    return 'just now';
+  if (diff < 3600000)  return Math.floor(diff/60000) + 'm ago';
+  if (diff < 86400000) return Math.floor(diff/3600000) + 'h ago';
+  if (diff < 604800000) return d.toLocaleDateString('da-DK', { weekday:'short', hour:'2-digit', minute:'2-digit' });
+  return d.toLocaleDateString('da-DK', { day:'numeric', month:'short', year: d.getFullYear()!==now.getFullYear()?'numeric':undefined });
+}
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+// Auth is handled by Cloudflare Access — CF_Authorization cookie sent automatically.
+function initAuth() { return true; }
+
+
+// ── Themes ────────────────────────────────────────────────────────────────────
+const THEMES = [
+  { id: 'warm',      label: 'Warm Sand',    bg:'#f7f4ef', surface:'#ffffff', accent:'#c17f3e', text:'#2c2825', border:'#e8e2d9', muted:'#a89f94' },
+  { id: 'slate',     label: 'Slate',        bg:'#f0f2f5', surface:'#ffffff', accent:'#4f6ef7', text:'#1e2433', border:'#dde1ea', muted:'#8892a4' },
+  { id: 'forest',    label: 'Forest',       bg:'#f0f4f0', surface:'#ffffff', accent:'#3d7a4f', text:'#1e2e22', border:'#d5e4d8', muted:'#7a9980' },
+  { id: 'rose',      label: 'Rose',         bg:'#fdf4f5', surface:'#ffffff', accent:'#c2405a', text:'#2d1e22', border:'#f0d8dd', muted:'#b08890' },
+  { id: 'midnight',  label: 'Midnight',     bg:'#13151a', surface:'#1e2028', accent:'#7c8cf8', text:'#e8eaf0', border:'#2d3040', muted:'#6b7280' },
+  { id: 'ink',       label: 'Ink',          bg:'#1a1a1a', surface:'#242424', accent:'#e8c547', text:'#f0ede8', border:'#333333', muted:'#666666' },
+  { id: 'lavender',  label: 'Lavender',     bg:'#f4f2fb', surface:'#ffffff', accent:'#7c5cbf', text:'#27213a', border:'#e0d8f5', muted:'#9b8cc0' },
+  { id: 'ocean',     label: 'Ocean',        bg:'#f0f7fb', surface:'#ffffff', accent:'#1a7fa8', text:'#0f2d3d', border:'#c8e4f0', muted:'#6a9fb5' },
+  { id: 'sepia',     label: 'Sepia',        bg:'#faf6f0', surface:'#fdf9f4', accent:'#8b5e3c', text:'#3d2b1a', border:'#e8ddd0', muted:'#a08060' },
+  { id: 'charcoal',  label: 'Charcoal',     bg:'#2a2d35', surface:'#333740', accent:'#56c4a0', text:'#e4e7ed', border:'#404550', muted:'#7a8090' },
+];
+
+function applyTheme(themeId) {
+  const t = THEMES.find(t => t.id === themeId) || THEMES[0];
+  const root = document.documentElement;
+  root.style.setProperty('--bg', t.bg);
+  root.style.setProperty('--surface', t.surface);
+  root.style.setProperty('--accent', t.accent);
+  root.style.setProperty('--text', t.text);
+  root.style.setProperty('--border', t.border);
+  root.style.setProperty('--muted', t.muted);
+  // derive accent-bg from accent (light tint)
+  root.style.setProperty('--accent-bg', t.accent + '18');
+  // update header bg
+  const isDark = t.bg.startsWith('#1') || t.bg.startsWith('#2');
+  document.querySelector('header').style.background = isDark
+    ? t.bg.replace('#','rgba(') + '0.95)' : 'rgba(247,244,239,0.95)';
+}
+
+function buildThemeGrid() {
+  const grid = document.getElementById('theme-grid');
+  if (!grid) return;
+  THEMES.forEach(t => {
+    const swatch = document.createElement('div');
+    swatch.className = 'theme-swatch' + (settings.theme === t.id ? ' active' : '');
+    swatch.title = t.label;
+    swatch.style.background = 'linear-gradient(135deg, ' + t.surface + ' 50%, ' + t.accent + ' 50%)';
+    swatch.style.border = '2px solid ' + t.border;
+    swatch.addEventListener('click', () => {
+      document.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
+      swatch.classList.add('active');
+      settings.theme = t.id;
+      saveSettings();
+      applyTheme(t.id);
+    });
+    grid.appendChild(swatch);
+  });
+}
+
+// ── Settings page controls ────────────────────────────────────────────────────
+function initSettingsControls() {
+  const infiniteToggle = document.getElementById('setting-infinite-scroll');
+  const maxHeightSlider = document.getElementById('setting-max-height');
+  const maxHeightVal    = document.getElementById('setting-max-height-val');
+
+
+  infiniteToggle.checked = settings.infiniteScroll;
+  maxHeightSlider.value  = settings.maxHeight;
+  maxHeightVal.textContent = settings.maxHeight === 0 ? 'Off' : settings.maxHeight + 'px';
+
+  const mobileFontSlider = document.getElementById('setting-mobile-font');
+  const mobileFontVal    = document.getElementById('setting-mobile-font-val');
+  mobileFontSlider.value = settings.mobileFontSize || 15;
+  mobileFontVal.textContent = (settings.mobileFontSize || 15) + 'px';
+  mobileFontSlider.addEventListener('input', () => {
+    settings.mobileFontSize = parseInt(mobileFontSlider.value);
+    mobileFontVal.textContent = settings.mobileFontSize + 'px';
+    applyMobileFontSize();
+    saveSettings();
+  });
+
+  const attPerPageSlider = document.getElementById('setting-att-per-page');
+  const attPerPageVal    = document.getElementById('setting-att-per-page-val');
+  attPerPageSlider.value = settings.attachmentsPerPage || 27;
+  attPerPageVal.textContent = settings.attachmentsPerPage || 27;
+  attPerPageSlider.addEventListener('input', () => {
+    settings.attachmentsPerPage = parseInt(attPerPageSlider.value);
+    attPerPageVal.textContent = settings.attachmentsPerPage;
+    saveSettings();
+    if (currentView === 'attachments') renderFeed();
+  });
+
+  const feedWidthSlider = document.getElementById('setting-feed-width');
+  const feedWidthVal    = document.getElementById('setting-feed-width-val');
+  feedWidthSlider.value = settings.feedMaxWidth || 700;
+  feedWidthVal.textContent = (settings.feedMaxWidth || 700) + 'px';
+  feedWidthSlider.addEventListener('input', () => {
+    settings.feedMaxWidth = parseInt(feedWidthSlider.value);
+    feedWidthVal.textContent = settings.feedMaxWidth + 'px';
+    applyFeedWidth();
+    saveSettings();
+  });
+
+
+  infiniteToggle.addEventListener('change', () => {
+    settings.infiniteScroll = infiniteToggle.checked;
+    saveSettings();
+    document.getElementById('load-more').style.display =
+      (settings.infiniteScroll || !nextCursor) ? 'none' : 'block';
+  });
+
+  maxHeightSlider.addEventListener('input', () => {
+    settings.maxHeight = parseInt(maxHeightSlider.value);
+    maxHeightVal.textContent = settings.maxHeight === 0 ? 'Off' : settings.maxHeight + 'px';
+  });
+  maxHeightSlider.addEventListener('change', () => {
+    saveSettings();
+    renderFeed(); // re-render with new height
+  });
+
+
+
+  buildThemeGrid();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadSettings();
+applyFeedWidth();
+applyTheme(settings.theme);
+applyMobileFontSize();
+
+// ── Sidebar margin: driven by matchMedia, not CSS media query ─────────────────
+// This prevents mobile Chrome's scrolling viewport resize from breaking layout.
+// Debounce the change handler so brief viewport-width glitches (e.g. Android
+// Chrome URL-bar collapse during infinite-scroll reflow) don't permanently
+// flip the class.
+const sidebarMQ = window.matchMedia('(min-width: 701px)');
+let _sidebarMarginTimer;
+function updateSidebarMargin(e) {
+  clearTimeout(_sidebarMarginTimer);
+  _sidebarMarginTimer = setTimeout(() => {
+    document.getElementById('content').classList.toggle('sidebar-visible', e.matches);
+  }, 150);
+}
+sidebarMQ.addEventListener('change', updateSidebarMargin);
+// Apply immediately on load (no debounce needed for initial state)
+document.getElementById('content').classList.toggle('sidebar-visible', sidebarMQ.matches);
+// ── Public share view ────────────────────────────────────────────────────────
+// If URL is /note/:id and there's no CF token, render a read-only public view
+// instead of the full app (requires CF Access Bypass policy on /note/* and
+// noteflow-api.jeppesen.cc/api/public/*).
+(async function checkPublicShare() {
+  const m = window.location.pathname.match(/^\/note\/([^/]+)$/);
+  if (!m) return;
+  const noteId = m[1];
+  const token = getCFToken();
+  if (token) return; // authenticated — normal app flow handles it
+
+  // Hide app shell, show share view
+  document.getElementById('app').style.display = 'none';
+
+  const wrap = document.createElement('div');
+  wrap.id = 'share-view';
+  wrap.innerHTML = `<style>
+    #share-view{max-width:700px;margin:48px auto;padding:0 20px;font-family:var(--font-body);color:var(--text)}
+    #share-view .sv-content{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px 32px;line-height:1.7}
+    #share-view .sv-content img{max-width:100%;border-radius:8px}
+    #share-view .sv-images{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+    #share-view .sv-images img{max-height:240px;border-radius:8px;object-fit:cover;cursor:pointer}
+    #share-view .sv-chips{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+    #share-view .sv-chip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:13px;color:var(--text);text-decoration:none;cursor:pointer}
+    #share-view .sv-chip:hover{background:var(--hover)}
+    #share-view .sv-footer{margin-top:28px;text-align:center;font-size:12px;color:var(--muted)}
+    #share-view .sv-footer a{color:var(--accent);text-decoration:none}
+    #share-view .sv-error{text-align:center;padding:60px 0;color:var(--muted)}
+  </style><div class="sv-content" id="sv-body"><em style="color:var(--muted)">Loading…</em></div>
+  <div class="sv-footer">Shared via <a href="/">NoteFlow</a></div>`;
+  document.body.appendChild(wrap);
+
+  try {
+    const r = await fetch(API_BASE + '/public/notes/' + noteId);
+    if (!r.ok) throw new Error(r.status);
+    const note = await r.json();
+    const body = document.getElementById('sv-body');
+    const displayContent = (note.content || '')
+      .replace(/<!-- tags -->[\s\S]*?<\/details>/gi, '')
+      .replace(/<!-- ocr -->\n/g, '')
+      .trim();
+    body.innerHTML = marked.parse(displayContent);
+    // Render all attachments
+    if ((note.attachments || []).length) {
+      const imgRow = document.createElement('div');
+      imgRow.className = 'sv-images';
+      const chipRow = document.createElement('div');
+      chipRow.className = 'sv-chips';
+      const svImgs = [];
+
+      note.attachments.forEach(att => {
+        const mime = att.mime_type || '';
+        const fname = att.filename || att.id || 'file';
+        const ext = fname.split('.').pop().toLowerCase();
+        const pubUrl = API_BASE + '/public/attachments/' + att.id;
+
+        const isImage = mime.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/.test(fname.toLowerCase());
+        const isVideo = mime.startsWith('video/') || ['mp4','webm','mov','mkv'].includes(ext);
+        const isAudio = mime.startsWith('audio/') || ['mp3','ogg','wav','flac','m4a'].includes(ext);
+
+        if (isImage) {
+          const img = document.createElement('img');
+          img.alt = fname;
+          img.loading = 'lazy';
+          fetch(pubUrl, { credentials: 'omit' })
+            .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+            .then(blob => {
+              img.src = URL.createObjectURL(blob);
+              img._blobUrl = img.src;
+              img.addEventListener('click', () => {
+                const all = svImgs.map(i => i._blobUrl).filter(Boolean);
+                openLightbox(img._blobUrl, all);
+              });
+            })
+            .catch(() => {});
+          svImgs.push(img);
+          imgRow.appendChild(img);
+        } else if (isVideo) {
+          const video = document.createElement('video');
+          video.controls = true;
+          video.style.cssText = 'max-width:100%;border-radius:8px;margin-top:8px;';
+          fetch(pubUrl, { credentials: 'omit' })
+            .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+            .then(blob => { video.src = URL.createObjectURL(blob); })
+            .catch(() => {});
+          imgRow.appendChild(video);
+        } else if (isAudio) {
+          const audio = document.createElement('audio');
+          audio.controls = true;
+          audio.style.cssText = 'width:100%;margin-top:8px;';
+          fetch(pubUrl, { credentials: 'omit' })
+            .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+            .then(blob => { audio.src = URL.createObjectURL(blob); })
+            .catch(() => {});
+          imgRow.appendChild(audio);
+        } else {
+          // PDF, office docs, text, and everything else — download chip
+          const chip = document.createElement('a');
+          chip.className = 'sv-chip';
+          chip.textContent = fileIcon(mime) + ' ' + fname;
+          chip.href = '#';
+          chip.addEventListener('click', async e => {
+            e.preventDefault();
+            chip.style.opacity = '0.6';
+            try {
+              const r = await fetch(pubUrl, { credentials: 'omit' });
+              if (!r.ok) throw new Error(r.status);
+              const blob = await r.blob();
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = fname;
+              a.click();
+            } catch(err) { alert('Download failed'); }
+            chip.style.opacity = '1';
+          });
+          chipRow.appendChild(chip);
+        }
+      });
+
+      if (imgRow.children.length) body.appendChild(imgRow);
+      if (chipRow.children.length) body.appendChild(chipRow);
+    }
+  } catch(e) {
+    document.getElementById('sv-body').innerHTML =
+      '<div class="sv-error">Note not found or no longer public.</div>';
+  }
+})();
+
+initSettingsControls();
+if (initAuth()) loadMemos();
+
+// ── Fetch current user info for settings panel ────────────────────────────────
+async function loadAccountInfo() {
+  try {
+    const data = await apiGet('/me');
+    const jwtEl  = document.getElementById('account-jwt-email');
+    const userEl = document.getElementById('account-user-id');
+    if (jwtEl)  jwtEl.textContent  = data.jwt_email || '—';
+    if (userEl) {
+      const userId = data.user?.id || '—';
+      // Show alias note if login email differs from data account
+      userEl.textContent = userId;
+      if (data.jwt_email && data.jwt_email !== userId) {
+        userEl.textContent = userId + ' ← aliased';
+      }
+    }
+  } catch(e) {
+    console.warn('Could not load account info:', e.message);
+  }
+}
+loadAccountInfo();
+</script>
+
+  <script>
+  // ── Service Worker Registration ───────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js?v=17').then(reg => {
+      console.log('SW registered');
+
+      // Listen for messages from SW (queue updates)
+      navigator.serviceWorker.addEventListener('message', event => {
+        const { type, size, synced } = event.data || {};
+        if (type === 'QUEUE_SIZE') updateQueueBadge(size);
+        if (type === 'QUEUE_FLUSHED' && synced > 0) {
+          toast(`✓ Synced ${synced} offline note${synced > 1 ? 's' : ''}`);
+          loadMemos();
+        }
+      });
+
+      // Ask SW for current queue size on load (only if controller is ready)
+      navigator.serviceWorker.ready.then(() => {
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'GET_QUEUE_SIZE' });
+        }
+      });
+    }).catch(err => console.warn('SW registration failed:', err));
+  }
+
+  // ── Online/offline banner (created dynamically, never shown on load) ───────
+  let _offlineBanner = null;
+  let _queueBadge = null;
+  let _isOffline = false;
+
+  function ensureOfflineUI() {
+    if (!_offlineBanner) {
+      _offlineBanner = document.createElement('div');
+      _offlineBanner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#e53935;color:#fff;text-align:center;font-size:13px;padding:8px;z-index:9999;font-family:system-ui,sans-serif;';
+      _offlineBanner.textContent = '📵 You\'re offline — new notes will sync when reconnected';
+      document.body.appendChild(_offlineBanner);
+    }
+    if (!_queueBadge) {
+      _queueBadge = document.createElement('div');
+      _queueBadge.style.cssText = 'display:none;position:fixed;bottom:48px;right:16px;background:#ff9800;color:#fff;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer;';
+      _queueBadge.innerHTML = '⏳ <span id="queue-count">0</span> pending';
+      _queueBadge.addEventListener('click', () => {
+        if (navigator.serviceWorker.controller)
+          navigator.serviceWorker.controller.postMessage({ type: 'SYNC_QUEUE' });
+        toast('Retrying sync…');
+      });
+      document.body.appendChild(_queueBadge);
+    }
+  }
+
+  function setOffline(offline) {
+    if (_isOffline === offline) return;
+    _isOffline = offline;
+    if (offline) {
+      ensureOfflineUI();
+      _offlineBanner.style.display = 'block';
+    } else {
+      if (_offlineBanner) _offlineBanner.style.display = 'none';
+      if (navigator.serviceWorker.controller)
+        navigator.serviceWorker.controller.postMessage({ type: 'SYNC_QUEUE' });
+    }
+  }
+
+  function updateQueueBadge(size) {
+    if (size > 0) {
+      ensureOfflineUI();
+      document.getElementById('queue-count').textContent = size;
+      _queueBadge.style.display = 'block';
+    } else if (_queueBadge) {
+      _queueBadge.style.display = 'none';
+    }
+  }
+
+  // Only trust actual browser events — never check on load
+  window.addEventListener('online',  () => setOffline(false));
+  window.addEventListener('offline', () => setOffline(true));
+
+  // ── Queue badge ──────────────────────────────────────────────────────────
+  // Queue badge handled in setOffline/updateQueueBadge above
+
+  // ── Share target: check for pending share on load ────────────────────────
+  async function checkSharePending() {
+    try {
+      const cache = await caches.open('noteflow-v2');
+      const res = await cache.match('/__share_pending__');
+      if (!res) return;
+      const { content } = await res.json();
+      await cache.delete('/__share_pending__');
+      if (content) openComposerWithContent(content);
+    } catch(e) { /* no cache, no problem */ }
+  }
+
+  // Also check sessionStorage fallback (for when SW wasn't ready)
+  const _ssPending = sessionStorage.getItem('__share_pending__');
+  if (_ssPending) {
+    try {
+      const { content } = JSON.parse(_ssPending);
+      sessionStorage.removeItem('__share_pending__');
+      if (content) setTimeout(() => openComposerWithContent(content), 500);
+    } catch(e) {}
+  }
+
+  function openComposerWithContent(content) {
+    // Switch to All notes view and open composer with pre-filled content
+    switchView('all');
+    const composer = document.getElementById('composer-input');
+    if (composer) {
+      composer.value = content;
+      composer.focus();
+      // Expand composer if collapsed
+      const wrap = document.getElementById('composer-wrap');
+      if (wrap) wrap.classList.add('expanded');
+    }
+  }
+
+  // ── Offline-aware memo save ──────────────────────────────────────────────
+  // Wrap the original saveMemo to queue offline
+  const _origSaveMemo = window.saveMemo;
+  window.saveMemo = async function(...args) {
+    if (navigator.onLine) {
+      return _origSaveMemo ? _origSaveMemo(...args) : undefined;
+    }
+    // Offline: queue the note
+    const composer = document.getElementById('composer-input');
+    const content = composer ? composer.value.trim() : '';
+    if (!content) return;
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'QUEUE_MEMO',
+        payload: { content, token: getCFToken() }
+      });
+      if (composer) composer.value = '';
+      toast('📥 Saved offline — will sync when reconnected');
+    }
+  };
+
+  // Check for share payload after SW is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', checkSharePending);
+  } else {
+    checkSharePending();
+  }
+  </script>
+
+</body>
+</html>

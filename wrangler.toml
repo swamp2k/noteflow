@@ -1,0 +1,22 @@
+name = "noteflow-api"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "noteflow"
+database_id = "075788a4-1d08-458e-9622-e10c561ee481"
+
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "noteflow-attachments"
+
+[vars]
+TEAM_DOMAIN = "https://hadus.cloudflareaccess.com"
+# After deploying, add the custom domain via the CF dashboard:
+#   Workers & Pages → noteflow-api → Settings → Domains & Routes → Add custom domain
+#   e.g. noteflow-api.jeppesen.cc
+#
+# Set secrets via:
+#   npx wrangler secret put POLICY_AUD
+#   npx wrangler secret put ANTHROPIC_KEY
