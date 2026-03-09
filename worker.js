@@ -148,10 +148,8 @@ export default {
         background_color: '#f5f4f0',
         theme_color: '#5b6af0',
         icons: [
-          { src: 'https://noteflow-api.jeppesen.cc/pwa/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: 'https://noteflow-api.jeppesen.cc/pwa/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: 'https://noteflow-api.jeppesen.cc/pwa/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-          { src: 'https://noteflow-api.jeppesen.cc/pwa/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'https://notes.jeppesen.cc/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: 'https://notes.jeppesen.cc/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
         screenshots: [
           { src: 'https://noteflow-api.jeppesen.cc/pwa/screenshot-wide.svg', sizes: '1280x720', type: 'image/svg+xml', form_factor: 'wide', label: 'NoteFlow on desktop' },

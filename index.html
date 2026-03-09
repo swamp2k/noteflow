@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="NoteFlow">
-  <link rel="apple-touch-icon" href="https://noteflow-api.jeppesen.cc/pwa/icon-192.png">
-  <link rel="icon" href="https://noteflow-api.jeppesen.cc/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="icon" href="/favicon.png" type="image/png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>NoteFlow</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2699,7 +2699,7 @@ loadAccountInfo();
   <script>
   // ── Service Worker Registration ───────────────────────────────────────────
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js?v=18').then(reg => {
+    navigator.serviceWorker.register('/service-worker.js?v=19').then(reg => {
       console.log('SW registered');
 
       // Listen for messages from SW (queue updates)
