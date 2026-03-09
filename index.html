@@ -639,6 +639,8 @@
   @media (max-width: 700px) {
     :root { font-size: var(--mobile-font-size, 15px); }
     .card-content { font-size: var(--mobile-font-size, 15px); }
+    .inline-editor { font-size: var(--mobile-font-size, 15px); }
+    #editor { font-size: var(--mobile-font-size, 15px); }
     /* Defensive: ensure content never gets desktop margin on mobile,
        even if JS briefly applies sidebar-visible due to viewport glitch */
     #content.sidebar-visible { margin-left: 0; }
@@ -837,6 +839,21 @@
           </div>
           <div class="settings-row">
             <div>
+              <div class="settings-label">Font</div>
+              <div class="settings-desc">Body font used throughout the app</div>
+            </div>
+            <div class="settings-control">
+              <select id="setting-font-family" style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px;font-family:var(--font-body);background:var(--bg);color:var(--text);outline:none;cursor:pointer">
+                <option value="'DM Sans', sans-serif">DM Sans (default)</option>
+                <option value="system-ui, sans-serif">System UI</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Lora', serif">Lora (serif)</option>
+                <option value="monospace">Monospace</option>
+              </select>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
               <div class="settings-label">Attachments per page</div>
               <div class="settings-desc">Max items shown in Attachments view</div>
             </div>
@@ -928,6 +945,7 @@ let settings = {
   attachmentsPerPage: 27,  // default 27
   feedMaxWidth: 700,         // px
   mobileFontSize: 15,        // px, mobile only
+  fontFamily: "'DM Sans', sans-serif",
 };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); if (s) settings = Object.assign(settings, s); } catch(e) {}
@@ -937,6 +955,9 @@ function applyMobileFontSize() {
 }
 function applyFeedWidth() {
   document.documentElement.style.setProperty('--feed-max-width', (settings.feedMaxWidth || 700) + 'px');
+}
+function applyFontFamily() {
+  document.documentElement.style.setProperty('--font-body', settings.fontFamily || "'DM Sans', sans-serif");
 }
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -1501,15 +1522,27 @@ function renderAttachmentsGallery(feed, memos) {
         icon.style.cssText = 'cursor:pointer;flex-direction:column';
         icon.title = 'Download ' + fname;
         icon.addEventListener('click', async () => {
-          try {
-            const r = await fetch(url, { credentials: 'include' });
-            if (!r.ok) throw new Error('Download failed');
-            const blob = await r.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl; a.download = fname; a.click();
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-          } catch(e) { toast('Download failed: ' + e.message); }
+          const ext = fname.split('.').pop().toLowerCase();
+          const isPdf   = mime === 'application/pdf' || ext === 'pdf';
+          const isVideo = mime.startsWith('video/') || ['mp4','webm','mov','mkv'].includes(ext);
+          const isAudio = mime.startsWith('audio/') || ['mp3','ogg','wav','flac','m4a'].includes(ext);
+          const isText  = mime.startsWith('text/') || ['txt','md','csv','json','xml','html','js','css'].includes(ext);
+          const isIndexed = ['docx','doc','xlsx','xls','odt','ods','odp'].includes(ext);
+          if (isPdf || isVideo || isAudio || isText || isIndexed) {
+            openFilePreview(att, fname, mime, url, isPdf, isVideo, isAudio, isText, isIndexed);
+          } else {
+            try {
+              icon.style.opacity = '0.6';
+              const r = await fetch(url, { credentials: 'omit', headers: authHeaders() });
+              if (!r.ok) throw new Error('Download failed');
+              const blob = await r.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl; a.download = fname; a.click();
+              setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+            } catch(e) { toast('Download failed: ' + e.message); }
+            finally { icon.style.opacity = '1'; }
+          }
         });
         item.appendChild(icon);
       }
@@ -1605,6 +1638,23 @@ function buildCard(memo) {
   if (isStarred) starBtn.classList.add('star-active');
   starBtn.addEventListener('click', e => { e.stopPropagation(); toggleTag(memo, 'starred'); });
   actions.appendChild(starBtn);
+
+  // Pin
+  const pinBtn = makeActionBtn(
+    '<svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>',
+    isPinned ? 'Unpin' : 'Pin to top'
+  );
+  if (isPinned) pinBtn.classList.add('star-active');
+  pinBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    try {
+      const updated = await apiPatch('/notes/' + memo.id, { pinned: !memo.pinned });
+      const idx = allMemos.findIndex(m => m.id === memo.id);
+      if (idx !== -1) allMemos[idx] = { ...allMemos[idx], ...updated.note };
+      renderFeed();
+    } catch(err) { toast('Failed to update pin'); }
+  });
+  actions.appendChild(pinBtn);
 
   // Hide
   const hideBtn = makeActionBtn(
@@ -2418,6 +2468,14 @@ function initSettingsControls() {
     saveSettings();
   });
 
+  const fontSelect = document.getElementById('setting-font-family');
+  fontSelect.value = settings.fontFamily || "'DM Sans', sans-serif";
+  fontSelect.addEventListener('change', () => {
+    settings.fontFamily = fontSelect.value;
+    applyFontFamily();
+    saveSettings();
+  });
+
   const attPerPageSlider = document.getElementById('setting-att-per-page');
   const attPerPageVal    = document.getElementById('setting-att-per-page-val');
   attPerPageSlider.value = settings.attachmentsPerPage || 27;
@@ -2465,6 +2523,7 @@ function initSettingsControls() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadSettings();
 applyFeedWidth();
+applyFontFamily();
 applyTheme(settings.theme);
 applyMobileFontSize();
 
@@ -2640,7 +2699,7 @@ loadAccountInfo();
   <script>
   // ── Service Worker Registration ───────────────────────────────────────────
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js?v=17').then(reg => {
+    navigator.serviceWorker.register('/service-worker.js?v=18').then(reg => {
       console.log('SW registered');
 
       // Listen for messages from SW (queue updates)
