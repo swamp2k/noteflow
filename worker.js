@@ -667,6 +667,12 @@ export default {
           status = 'error';
         }
 
+        // Always mark as processed — even on error — so the same file isn't
+        // retried forever and remaining count actually decrements.
+        await env.DB.prepare(
+          'INSERT OR IGNORE INTO document_index (attachment_id, text_content, indexed_at) VALUES (?, ?, ?)'
+        ).bind(att.id, '', Math.floor(Date.now() / 1000)).run();
+
         return json({
           done: false,
           remaining: toIndex.length - 1,
