@@ -349,6 +349,7 @@
   .card-images img:hover { transform: scale(1.02); }
 
   .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  body.hide-tags .card-tags { display: none; }
   .tag-pill {
     font-size: 11px; padding: 2px 7px;
     background: var(--accent-bg); color: var(--accent);
@@ -909,6 +910,72 @@
           </div>
         </div>
 
+        <div class="settings-section">
+          <div class="settings-section-title">AI</div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Provider</div>
+              <div class="settings-desc">Which AI service to use for tagging and image analysis</div>
+            </div>
+            <div class="settings-control">
+              <select id="setting-ai-provider" style="padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px">
+                <option value="claude">Claude (Anthropic)</option>
+                <option value="gemini">Gemini (Google)</option>
+                <option value="openai">GPT (OpenAI)</option>
+              </select>
+            </div>
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <div class="settings-label">API Key</div>
+            <div class="settings-desc">Stored locally in your browser only. Leave blank to use the built-in key (Claude only).</div>
+            <input type="password" id="setting-ai-key" placeholder="Paste your API key here…"
+              style="width:100%;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <div class="settings-label">Model <span style="font-weight:400;color:var(--muted)">(optional override)</span></div>
+            <div class="settings-desc">Leave blank to use the provider default (claude-sonnet-4-6 / gemini-2.0-flash / gpt-4o-mini)</div>
+            <input type="text" id="setting-ai-model" placeholder="e.g. claude-opus-4-6"
+              style="width:100%;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Tags</div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Show tags on notes</div>
+              <div class="settings-desc">Display tag chips below each note card</div>
+            </div>
+            <div class="settings-control">
+              <label class="toggle">
+                <input type="checkbox" id="setting-show-tags" checked>
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <div class="settings-label">Tag categories</div>
+            <div class="settings-desc">Comma-separated top-level categories fed to the AI tagger (e.g. Work, Private, Family)</div>
+            <input type="text" id="setting-tag-categories" placeholder="Work, Private, Family"
+              style="width:100%;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <div class="settings-label">People</div>
+            <div class="settings-desc">Comma-separated names the AI should recognise as tags (e.g. Randi, Balder)</div>
+            <input type="text" id="setting-tag-people" placeholder="Randi, Balder"
+              style="width:100%;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <div class="settings-label">Bulk auto-tag</div>
+            <div class="settings-desc">Run AI tagging on all notes that currently have no tags</div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <button id="btn-tag-all-untagged" style="font-size:13px;padding:6px 14px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">Tag all untagged notes</button>
+              <span id="tag-all-status" style="font-size:12px;color:var(--muted)"></span>
+            </div>
+          </div>
+        </div>
+
 
       </div>
     </main>
@@ -962,8 +1029,8 @@ marked.use({ breaks: true, gfm: true });
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE      = 'https://noteflow-api.jeppesen.cc/api';
 const SHARE_BASE    = 'https://notes.jeppesen.cc';
-let ANTHROPIC_KEY   = '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';
-const CLAUDE_MODEL  = 'claude-haiku-4-5-20251001';
+const ANTHROPIC_KEY_DEFAULT = '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';
+const CLAUDE_MODEL  = 'claude-sonnet-4-6';
 const PAGE_SIZE     = 20;
 const SPECIAL_TAGS  = ['hidden', 'starred'];
 
@@ -988,6 +1055,16 @@ let settings = {
   fontFamily: "'DM Sans', sans-serif",
   offlineDays: 7,            // 0 = off; days of notes to cache for offline
   offlineCacheAttachments: false,
+  showTags: true,
+  tagCategories: '',         // comma-separated top-level categories, e.g. "Work, Private, Family"
+  tagPeople: '',             // comma-separated people names, e.g. "Randi, Balder"
+};
+
+// ── User settings (DB-backed — sensitive / per-account) ───────────────────────
+let userSettings = {
+  aiProvider: 'claude',  // 'claude' | 'gemini' | 'openai'
+  aiApiKey:   '',        // provider API key; for Claude falls back to built-in key
+  aiModel:    '',        // optional override; empty = use provider default
 };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); if (s) settings = Object.assign(settings, s); } catch(e) {}
@@ -1052,6 +1129,29 @@ async function apiDelete(path) {
   if (!r.ok) throw new Error('DELETE ' + r.status);
   return r.json();
 }
+// ── User settings (DB-backed) ─────────────────────────────────────────────────
+async function loadUserSettings() {
+  try {
+    const data = await apiGet('/user/settings');
+    Object.assign(userSettings, data);
+  } catch(e) {
+    console.warn('Could not load user settings:', e.message);
+  }
+}
+async function saveUserSettings() {
+  try { await apiPatch('/user/settings', userSettings); } catch(e) { /* silent */ }
+}
+// Use PUT for user settings since we replace the whole object
+async function putUserSettings() {
+  try {
+    await fetch(API_BASE + '/user/settings', {
+      method: 'PUT', credentials: 'omit',
+      headers: authHeaders(),
+      body: JSON.stringify(userSettings)
+    });
+  } catch(e) { /* silent */ }
+}
+
 async function uploadAttachment(file, noteId) {
   const base64 = await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1084,18 +1184,45 @@ function isImageAttachment(att) {
   return /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)$/.test(fn);
 }
 
-// ── AI ────────────────────────────────────────────────────────────────────────
+// ── AI helpers ────────────────────────────────────────────────────────────────
+function aiKey()   { return userSettings.aiApiKey || ANTHROPIC_KEY_DEFAULT; }
+function aiModel() {
+  if (userSettings.aiModel) return userSettings.aiModel;
+  if (userSettings.aiProvider === 'gemini') return 'gemini-2.5-flash';
+  if (userSettings.aiProvider === 'openai') return 'gpt-4o-mini';
+  return CLAUDE_MODEL;
+}
+
+function tagSystemPrompt() {
+  const categories = (settings.tagCategories || '').split(',').map(s => s.trim()).filter(Boolean);
+  const people     = (settings.tagPeople     || '').split(',').map(s => s.trim()).filter(Boolean);
+  let hints = '';
+  if (categories.length) hints += `\n- If the note fits one of these categories, include it as a tag (exact spelling, lowercase): ${categories.map(c => c.toLowerCase()).join(', ')}`;
+  if (people.length)     hints += `\n- If the note mentions or is about one of these people, include their name as a tag (lowercase): ${people.map(p => p.toLowerCase()).join(', ')}`;
+  return `Tagging assistant for a personal note app. Content may be Danish, English, or mixed.
+Return 3-6 specific tags as a JSON array only. Example: ["opskrift","pasta","aftensmad"]
+- Lowercase, hyphens for spaces (e.g. "meeting-notes")
+- Specific not generic — avoid: note, misc, general, text
+- Never include: ${SPECIAL_TAGS.join(', ')}${hints}`;
+}
+
+// Parse a JSON tag array from any provider's text response
+function parseTagsJson(text) {
+  try { return JSON.parse(text.replace(/```json|```/g, '').trim()); }
+  catch { return []; }
+}
+
 async function claudeVision(base64, mediaType) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_KEY,
+      'x-api-key': aiKey(),
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: CLAUDE_MODEL, max_tokens: 300,
+      model: aiModel(), max_tokens: 300,
       system: `You analyze images and extract meaningful information. Content may be in Danish, English, or mixed.
 Describe what matters: key facts, numbers, names, prices, important text.
 Ignore boilerplate: navigation menus, cookie banners, legal disclaimers, generic UI labels.
@@ -1110,33 +1237,76 @@ Be concise — 1 to 3 sentences max. Write in the same language as the main cont
   return d.content?.[0]?.text?.trim() || '';
 }
 
-async function claudeTags(content) {
-  const stripped = content.replace(/#[\w\u00C0-\u024F-]+/g, '').replace(/<[^>]+>/g, '').trim();
-  if (stripped.length < 15) return [];
-  try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+// Provider-specific tag functions
+async function claudeTags(text) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': aiKey(),
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: aiModel(), max_tokens: 150,
+      system: tagSystemPrompt(),
+      messages: [{ role: 'user', content: text }]
+    })
+  });
+  if (!r.ok) {
+    const errBody = await r.json().catch(() => ({}));
+    throw new Error(`Anthropic ${r.status}: ${errBody?.error?.message || r.statusText}`);
+  }
+  const d = await r.json();
+  return parseTagsJson(d.content?.[0]?.text?.trim() || '[]');
+}
+
+async function geminiTags(text) {
+  const model = aiModel();
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${aiKey()}`,
+    {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: CLAUDE_MODEL, max_tokens: 100,
-        system: `Tagging assistant for a personal note app. Content may be Danish, English, or mixed.
-Return 3-5 specific tags as a JSON array only. Example: ["opskrift","pasta","aftensmad"]
-- Lowercase, hyphens for spaces (e.g. "meeting-notes")
-- Specific not generic — avoid: note, misc, general, text
-- Never include: ${SPECIAL_TAGS.join(', ')}`,
-        messages: [{ role: 'user', content: stripped.slice(0, 1500) }]
+        system_instruction: { parts: [{ text: tagSystemPrompt() }] },
+        contents: [{ parts: [{ text }] }],
+        generationConfig: { maxOutputTokens: 150 }
       })
-    });
-    const d = await r.json();
-    const raw = d.content?.[0]?.text?.trim() || '[]';
-    try { return JSON.parse(raw.replace(/```json|```/g, '').trim()); }
-    catch { return []; }
-  } catch { return []; }
+    }
+  );
+  const d = await r.json();
+  return parseTagsJson(d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '[]');
+}
+
+async function openaiTags(text) {
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${aiKey()}`,
+    },
+    body: JSON.stringify({
+      model: aiModel(), max_tokens: 150,
+      messages: [
+        { role: 'system', content: tagSystemPrompt() },
+        { role: 'user', content: text }
+      ]
+    })
+  });
+  const d = await r.json();
+  return parseTagsJson(d.choices?.[0]?.message?.content?.trim() || '[]');
+}
+
+// Unified entry point used by save flow and bulk tagger.
+// Throws on API errors so callers can distinguish "no tags" from "call failed".
+async function aiTags(content) {
+  const stripped = (content || '').replace(/#[\w\u00C0-\u024F-]+/g, '').replace(/<[^>]+>/g, '').trim();
+  if (stripped.length < 15) return [];
+  const text = stripped.slice(0, 2000);
+  if (userSettings.aiProvider === 'gemini') return await geminiTags(text);
+  if (userSettings.aiProvider === 'openai') return await openaiTags(text);
+  return await claudeTags(text);
 }
 
 // ── Image handling ────────────────────────────────────────────────────────────
@@ -1305,22 +1475,26 @@ document.getElementById('save-btn').addEventListener('click', async () => {
   try {
     let content = htmlToMarkdown(html);
 
+    // Strip any legacy <details> tag block from content before saving
+    content = content.replace(/\n*<!-- tags -->\n<details>[\s\S]*?<\/details>/g, '').trim();
+
     // AI tags
     toast('Tagging…');
-    const suggestedTags = await claudeTags(content);
-    const existingTags = (content.match(/#[\w\u00C0-\u024F-]+/g) || []).map(t => t.slice(1).toLowerCase());
-    const newTags = suggestedTags.filter(t => !existingTags.includes(t) && !SPECIAL_TAGS.includes(t));
-    if (newTags.length) {
-      content += '\n\n<!-- tags -->\n<details><summary>🏷️ Tags</summary>\n\n' +
-        newTags.map(t => '#' + t).join(' ') + '\n\n</details>';
-    }
+    let suggestedTags = [];
+    try { suggestedTags = await aiTags(content); }
+    catch(e) { console.warn('AI tagging failed:', e.message); }
+    const inlineHashtags = (content.match(/#[\w\u00C0-\u024F-]+/g) || []).map(t => t.slice(1).toLowerCase())
+      .filter(t => !SPECIAL_TAGS.includes(t));
+    const allTags = [...new Set([...inlineHashtags, ...suggestedTags])];
 
     // Auto-tag if creating from starred/hidden view
-    if (currentView === 'starred' && !content.includes('#starred')) content += '\n\n#starred';
-    if (currentView === 'hidden'  && !content.includes('#hidden'))  content += '\n\n#hidden';
+    const viewTags = [];
+    if (currentView === 'starred') viewTags.push('starred');
+    if (currentView === 'hidden')  viewTags.push('hidden');
+    const finalTags = [...new Set([...allTags, ...viewTags])];
 
     // Create the note first, then attach files
-    const body = { content: content.trim(), visibility: 'PRIVATE' };
+    const body = { content: content.trim(), visibility: 'PRIVATE', tags: finalTags };
     const result = await apiPost('/notes', body);
     const newMemo = result.note;
 
@@ -2104,28 +2278,14 @@ function makeActionBtn(svgHtml, title) {
 
 // ── Toggle tag via API ────────────────────────────────────────────────────────
 async function toggleTag(memo, tag) {
-  const hasTag = /\B#/.test(memo.content) && memo.content.includes('#' + tag);
-  let content = memo.content;
-
-  if (hasTag) {
-    content = content.replace(new RegExp('\\s*#' + tag + '\\b', 'g'), '').trim();
-    // Remove empty tag block
-    content = content.replace(/\n*<!-- tags -->\n<details><summary>[^<]*<\/summary>\n\n\s*\n\n<\/details>/g, '').trim();
-  } else {
-    const marker = '<!-- tags -->';
-    const blockStart = content.indexOf(marker);
-    if (blockStart !== -1) {
-      const closePos = content.indexOf('</details>', blockStart);
-      if (closePos !== -1) {
-        content = content.slice(0, closePos) + ' #' + tag + '\n' + content.slice(closePos);
-      }
-    } else {
-      content += '\n\n' + marker + '\n<details><summary>🏷️ Tags</summary>\n\n#' + tag + '\n\n</details>';
-    }
-  }
+  const currentTags = Array.isArray(memo.tags) ? memo.tags : [];
+  const hasTag = currentTags.includes(tag);
+  const newTags = hasTag
+    ? currentTags.filter(t => t !== tag)
+    : [...currentTags, tag];
 
   try {
-    const result = await apiPatch('/notes/' + memo.id, { content });
+    const result = await apiPatch('/notes/' + memo.id, { tags: newTags });
     const updated = result.note || result;
     const idx = allMemos.findIndex(m => m.id === memo.id);
     if (idx !== -1) allMemos[idx] = updated;
@@ -2608,6 +2768,66 @@ function buildThemeGrid() {
   });
 }
 
+// ── Bulk auto-tagger ──────────────────────────────────────────────────────────
+async function bulkTagUntagged(onProgress) {
+  // Fetch ALL notes (paginate through everything)
+  let cursor = null;
+  const allNotes = [];
+  do {
+    const url = '/notes?limit=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+    const data = await apiGet(url);
+    allNotes.push(...(data.notes || []));
+    cursor = data.nextCursor || null;
+  } while (cursor);
+
+  const untagged = allNotes.filter(n => !n.tags || n.tags.length === 0);
+  if (untagged.length === 0) return { done: 0, skipped: 0 };
+
+  // Pre-fetch combined content + OCR text for all untagged notes in batches of 100
+  const contextMap = {};
+  const CTX_BATCH = 90;
+  for (let i = 0; i < untagged.length; i += CTX_BATCH) {
+    const ids = untagged.slice(i, i + CTX_BATCH).map(n => n.id);
+    try {
+      const r = await fetch(API_BASE + '/notes/tag-contexts', {
+        method: 'POST', credentials: 'omit',
+        headers: authHeaders(),
+        body: JSON.stringify({ ids })
+      });
+      if (r.ok) Object.assign(contextMap, await r.json());
+    } catch(e) { /* fall back to note.content */ }
+  }
+
+  let done = 0, skipped = 0, failed = 0;
+  for (let i = 0; i < untagged.length; i++) {
+    const note = untagged[i];
+    try {
+      const context = contextMap[note.id] || note.content || '';
+      const tags = await aiTags(context);
+      if (tags.length > 0) {
+        await apiPatch('/notes/' + note.id, { tags });
+        const idx = allMemos.findIndex(m => m.id === note.id);
+        if (idx !== -1) allMemos[idx] = { ...allMemos[idx], tags };
+        done++;
+      } else {
+        skipped++;
+      }
+    } catch(e) {
+      console.warn('Tag failed for', note.id, e.message);
+      failed++;
+    }
+    onProgress(done, failed, untagged.length);
+    // 1.2s between notes keeps well under Anthropic's rate limits
+    if (i < untagged.length - 1) await new Promise(r => setTimeout(r, 1200));
+  }
+  return { done, skipped, failed, total: untagged.length };
+}
+
+// ── Show/hide tags ────────────────────────────────────────────────────────────
+function applyShowTags() {
+  document.body.classList.toggle('hide-tags', !settings.showTags);
+}
+
 // ── Settings page controls ────────────────────────────────────────────────────
 function initSettingsControls() {
   const infiniteToggle = document.getElementById('setting-infinite-scroll');
@@ -2721,6 +2941,63 @@ function initSettingsControls() {
   if (cached.length) {
     offlineCacheStatus.textContent = `Currently cached: ${cached.length} notes`;
   }
+
+  // ── AI settings (DB-backed via userSettings) ──────────────────────────────
+  const aiProviderSelect = document.getElementById('setting-ai-provider');
+  const aiKeyInput       = document.getElementById('setting-ai-key');
+  const aiModelInput     = document.getElementById('setting-ai-model');
+
+  function refreshAiControls() {
+    aiProviderSelect.value = userSettings.aiProvider || 'claude';
+    aiKeyInput.value       = userSettings.aiApiKey   || '';
+    aiModelInput.value     = userSettings.aiModel    || '';
+  }
+  refreshAiControls();
+  // Re-populate once user settings finish loading from DB
+  loadUserSettings().then(refreshAiControls);
+
+  aiProviderSelect.addEventListener('change', () => { userSettings.aiProvider = aiProviderSelect.value; putUserSettings(); });
+  aiKeyInput.addEventListener('change',   () => { userSettings.aiApiKey = aiKeyInput.value.trim(); putUserSettings(); });
+  aiModelInput.addEventListener('change', () => { userSettings.aiModel  = aiModelInput.value.trim(); putUserSettings(); });
+
+  // ── Tag settings ──────────────────────────────────────────────────────────
+  const showTagsToggle     = document.getElementById('setting-show-tags');
+  const tagCategoriesInput = document.getElementById('setting-tag-categories');
+  const tagPeopleInput     = document.getElementById('setting-tag-people');
+  const tagAllBtn          = document.getElementById('btn-tag-all-untagged');
+  const tagAllStatus       = document.getElementById('tag-all-status');
+
+  showTagsToggle.checked    = settings.showTags !== false;
+  tagCategoriesInput.value  = settings.tagCategories || '';
+  tagPeopleInput.value      = settings.tagPeople     || '';
+
+  showTagsToggle.addEventListener('change', () => {
+    settings.showTags = showTagsToggle.checked;
+    applyShowTags();
+    saveSettings();
+  });
+  tagCategoriesInput.addEventListener('input', () => { settings.tagCategories = tagCategoriesInput.value; saveSettings(); });
+  tagPeopleInput.addEventListener('input',     () => { settings.tagPeople     = tagPeopleInput.value;     saveSettings(); });
+
+  tagAllBtn.addEventListener('click', async () => {
+    if (tagAllBtn.disabled) return;
+    tagAllBtn.disabled = true;
+    tagAllStatus.textContent = 'Fetching notes…';
+    try {
+      const result = await bulkTagUntagged((done, failed, total) => {
+        tagAllStatus.textContent = `${done + failed}/${total} — ${done} tagged${failed ? `, ${failed} errors` : ''}…`;
+      });
+      if (!result.total) {
+        tagAllStatus.textContent = 'All notes already have tags.';
+      } else {
+        tagAllStatus.textContent = `Done — ${result.done} tagged, ${result.skipped} no tags, ${result.failed} errors.`;
+        if (result.done > 0) await loadMemos();
+      }
+    } catch(e) {
+      tagAllStatus.textContent = 'Error: ' + e.message;
+    }
+    tagAllBtn.disabled = false;
+  });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -2729,6 +3006,7 @@ applyFeedWidth();
 applyFontFamily();
 applyTheme(settings.theme);
 applyMobileFontSize();
+applyShowTags();
 
 // ── Sidebar margin: driven by matchMedia, not CSS media query ─────────────────
 // This prevents mobile Chrome's scrolling viewport resize from breaking layout.
@@ -2875,7 +3153,10 @@ document.getElementById('content').classList.toggle('sidebar-visible', sidebarMQ
 })();
 
 initSettingsControls();
-if (initAuth()) loadMemos();
+if (initAuth()) {
+  loadUserSettings(); // load AI provider/key into userSettings (non-blocking)
+  loadMemos();
+}
 
 // ── Fetch current user info for settings panel ────────────────────────────────
 async function loadAccountInfo() {

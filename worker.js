@@ -341,10 +341,9 @@ export default {
       // ── POST /api/notes ─────────────────────────────────────────────────────
       if (path === '/api/notes' && method === 'POST') {
         const body = await request.json();
-        const { content = '', visibility = 'PRIVATE', created_at, updated_at } = body;
+        const { content = '', visibility = 'PRIVATE', created_at, updated_at, tags: bodyTags } = body;
 
         const id = nanoid('n_');
-        // Support migrated timestamps (Unix seconds) or default to now
         const createdAt = created_at ? parseInt(created_at) : Math.floor(Date.now() / 1000);
         const updatedAt = updated_at ? parseInt(updated_at) : createdAt;
 
@@ -352,7 +351,10 @@ export default {
           'INSERT INTO notes (id, user_id, content, visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
         ).bind(id, userId, content, visibility, createdAt, updatedAt).run();
 
-        const tags = extractTags(content);
+        // Use explicitly provided tags, falling back to extracting from content
+        const tags = (Array.isArray(bodyTags) && bodyTags.length > 0)
+          ? bodyTags.map(t => String(t).toLowerCase().trim()).filter(Boolean)
+          : extractTags(content);
         if (tags.length > 0) {
           const tagInserts = tags.map(() => '(?, ?, ?)').join(',');
           const tagValues = tags.flatMap(t => [id, t, userId]);
@@ -404,10 +406,12 @@ export default {
             'UPDATE notes SET content = ?, visibility = ?, pinned = ?, archived = ?, updated_at = ? WHERE id = ?'
           ).bind(content, visibility, pinned, archived, updatedAt, noteId).run();
 
-          // Re-sync tags if content changed
-          if (body.content !== undefined) {
+          // Re-sync tags: explicit tags array takes priority, else re-extract from content
+          if (body.content !== undefined || Array.isArray(body.tags)) {
             await env.DB.prepare('DELETE FROM note_tags WHERE note_id = ?').bind(noteId).run();
-            const tags = extractTags(content);
+            const tags = (Array.isArray(body.tags) && body.tags.length > 0)
+              ? body.tags.map(t => String(t).toLowerCase().trim()).filter(Boolean)
+              : extractTags(content);
             if (tags.length > 0) {
               const tagInserts = tags.map(() => '(?, ?, ?)').join(',');
               const tagValues = tags.flatMap(t => [noteId, t, userId]);
@@ -678,6 +682,67 @@ export default {
           remaining: toIndex.length - 1,
           indexed: { id: att.id, filename: att.filename, status },
         }, 200, origin);
+      }
+
+      // ── POST /api/notes/tag-contexts ─────────────────────────────────────
+      // Returns combined note content + indexed attachment text per note ID.
+      // Used by bulk tagger to enrich context for notes that are mostly images.
+      if (path === '/api/notes/tag-contexts' && method === 'POST') {
+        const { ids } = await request.json();
+        if (!Array.isArray(ids) || ids.length === 0) return json({}, 200, origin);
+        const safe = ids.slice(0, 90); // D1 max 100 bound params; 90 ids + 1 userId = 91
+        const ph = safe.map(() => '?').join(',');
+
+        const { results: notes } = await env.DB.prepare(
+          `SELECT id, content FROM notes WHERE id IN (${ph}) AND user_id = ?`
+        ).bind(...safe, userId).all();
+
+        const { results: indexed } = await env.DB.prepare(
+          `SELECT a.note_id, di.text_content
+           FROM attachments a
+           JOIN document_index di ON di.attachment_id = a.id
+           WHERE a.note_id IN (${ph}) AND a.user_id = ?`
+        ).bind(...safe, userId).all();
+
+        const indexMap = {};
+        for (const row of indexed) {
+          if (!indexMap[row.note_id]) indexMap[row.note_id] = [];
+          indexMap[row.note_id].push(row.text_content || '');
+        }
+
+        const contexts = {};
+        for (const note of notes) {
+          const parts = [note.content || '', ...(indexMap[note.id] || [])].filter(s => s.trim());
+          contexts[note.id] = parts.join('\n\n').slice(0, 4000);
+        }
+        return json(contexts, 200, origin);
+      }
+
+      // ── GET /api/user/settings ────────────────────────────────────────────
+      if (path === '/api/user/settings' && method === 'GET') {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS user_settings (
+            user_id TEXT PRIMARY KEY,
+            data    TEXT NOT NULL DEFAULT '{}'
+          )`).run();
+        const row = await env.DB.prepare(
+          'SELECT data FROM user_settings WHERE user_id = ?'
+        ).bind(userId).first();
+        return json(row ? JSON.parse(row.data) : {}, 200, origin);
+      }
+
+      // ── PUT /api/user/settings ────────────────────────────────────────────
+      if (path === '/api/user/settings' && method === 'PUT') {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS user_settings (
+            user_id TEXT PRIMARY KEY,
+            data    TEXT NOT NULL DEFAULT '{}'
+          )`).run();
+        const body = await request.json();
+        await env.DB.prepare(
+          'INSERT OR REPLACE INTO user_settings (user_id, data) VALUES (?, ?)'
+        ).bind(userId, JSON.stringify(body)).run();
+        return json({ ok: true }, 200, origin);
       }
 
       return err('Not found', 404, origin);

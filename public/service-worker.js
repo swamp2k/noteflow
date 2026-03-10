@@ -1,5 +1,5 @@
 // NoteFlow Service Worker
-const CACHE_VERSION = 'noteflow-v11';
+const CACHE_VERSION = 'noteflow-v13';
 const API_BASE = 'https://noteflow-api.jeppesen.cc/api';
 
 // ── Offline memo queue (stored in SW scope) ───────────────────────────────────
@@ -117,7 +117,8 @@ self.addEventListener('fetch', event => {
         caches.match(event.request).then(cached =>
           cached || fetch(event.request).then(res => {
             if (res.ok) {
-              caches.open(CACHE_VERSION).then(c => c.put(event.request, res.clone()));
+              const clone = res.clone();
+              caches.open(CACHE_VERSION).then(c => c.put(event.request, clone));
             }
             return res;
           })
