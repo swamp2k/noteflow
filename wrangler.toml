@@ -20,3 +20,19 @@ TEAM_DOMAIN = "https://hadus.cloudflareaccess.com"
 # Set secrets via:
 #   npx wrangler secret put POLICY_AUD
 #   npx wrangler secret put ANTHROPIC_KEY
+
+# ── Staging environment (import testing) ─────────────────────────────────────
+[env.staging]
+name = "noteflow-api-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "noteflow-staging"
+database_id = "a92d3e53-4c53-4bf8-a70c-212483830aad"
+
+[[env.staging.r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "noteflow-attachments"
+
+[env.staging.vars]
+TEAM_DOMAIN = "https://hadus.cloudflareaccess.com"
