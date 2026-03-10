@@ -927,7 +927,7 @@
           </div>
           <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
             <div class="settings-label">API Key</div>
-            <div class="settings-desc">Stored locally in your browser only. Leave blank to use the built-in key (Claude only).</div>
+            <div class="settings-desc">Stored securely in your account. Leave blank to use the built-in key (Claude only).</div>
             <input type="password" id="setting-ai-key" placeholder="Paste your API key here…"
               style="width:100%;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">
           </div>
@@ -1029,7 +1029,7 @@ marked.use({ breaks: true, gfm: true });
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE      = 'https://noteflow-api.jeppesen.cc/api';
 const SHARE_BASE    = 'https://notes.jeppesen.cc';
-const ANTHROPIC_KEY_DEFAULT = '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';
+const ANTHROPIC_KEY_DEFAULT = ''; // set your key in Settings → AI
 const CLAUDE_MODEL  = 'claude-sonnet-4-6';
 const PAGE_SIZE     = 20;
 const SPECIAL_TAGS  = ['hidden', 'starred'];
@@ -1043,32 +1043,52 @@ let shareTargetMemo = null;
 let editTargetMemo  = null;
 let searchQuery     = '';
 
-// ── Settings (persisted in localStorage) ─────────────────────────────────────
-const SETTINGS_KEY = 'memostack_settings';
+// ── Settings (DB-backed per account) ─────────────────────────────────────────
 let settings = {
   infiniteScroll: false,
-  maxHeight: 0,         // 0 = off
+  maxHeight: 0,
   theme: 'warm',
-  attachmentsPerPage: 27,  // default 27
-  feedMaxWidth: 700,         // px
-  mobileFontSize: 15,        // px, mobile only
+  attachmentsPerPage: 27,
+  feedMaxWidth: 700,
+  mobileFontSize: 15,
   fontFamily: "'DM Sans', sans-serif",
-  offlineDays: 7,            // 0 = off; days of notes to cache for offline
+  offlineDays: 7,
   offlineCacheAttachments: false,
   showTags: true,
-  tagCategories: '',         // comma-separated top-level categories, e.g. "Work, Private, Family"
-  tagPeople: '',             // comma-separated people names, e.g. "Randi, Balder"
+  tagCategories: '',
+  tagPeople: '',
+  aiProvider: 'claude',
+  aiApiKey:   '',
+  aiModel:    '',
 };
 
-// ── User settings (DB-backed — sensitive / per-account) ───────────────────────
-let userSettings = {
-  aiProvider: 'claude',  // 'claude' | 'gemini' | 'openai'
-  aiApiKey:   '',        // provider API key; for Claude falls back to built-in key
-  aiModel:    '',        // optional override; empty = use provider default
-};
-function loadSettings() {
-  try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); if (s) settings = Object.assign(settings, s); } catch(e) {}
+let _saveSettingsTimer = null;
+function saveSettings() {
+  clearTimeout(_saveSettingsTimer);
+  _saveSettingsTimer = setTimeout(async () => {
+    try {
+      await fetch(API_BASE + '/user/settings', {
+        method: 'PUT', credentials: 'omit',
+        headers: authHeaders(),
+        body: JSON.stringify(settings)
+      });
+    } catch(e) { console.warn('Settings save failed:', e.message); }
+  }, 800);
 }
+
+async function loadSettings() {
+  try {
+    const data = await apiGet('/user/settings');
+    if (data && typeof data === 'object') Object.assign(settings, data);
+  } catch(e) { /* use defaults */ }
+  applyFeedWidth();
+  applyFontFamily();
+  applyTheme(settings.theme);
+  applyMobileFontSize();
+  applyShowTags();
+  syncSettingsControls();
+}
+
 function applyMobileFontSize() {
   document.documentElement.style.setProperty('--mobile-font-size', (settings.mobileFontSize || 15) + 'px');
 }
@@ -1078,10 +1098,6 @@ function applyFeedWidth() {
 function applyFontFamily() {
   document.documentElement.style.setProperty('--font-body', settings.fontFamily || "'DM Sans', sans-serif");
 }
-function saveSettings() {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
 // ── API ───────────────────────────────────────────────────────────────────────
 // Auth: read CF_Authorization cookie and forward as header to cross-subdomain API
 function getCFToken() {
@@ -1129,29 +1145,6 @@ async function apiDelete(path) {
   if (!r.ok) throw new Error('DELETE ' + r.status);
   return r.json();
 }
-// ── User settings (DB-backed) ─────────────────────────────────────────────────
-async function loadUserSettings() {
-  try {
-    const data = await apiGet('/user/settings');
-    Object.assign(userSettings, data);
-  } catch(e) {
-    console.warn('Could not load user settings:', e.message);
-  }
-}
-async function saveUserSettings() {
-  try { await apiPatch('/user/settings', userSettings); } catch(e) { /* silent */ }
-}
-// Use PUT for user settings since we replace the whole object
-async function putUserSettings() {
-  try {
-    await fetch(API_BASE + '/user/settings', {
-      method: 'PUT', credentials: 'omit',
-      headers: authHeaders(),
-      body: JSON.stringify(userSettings)
-    });
-  } catch(e) { /* silent */ }
-}
-
 async function uploadAttachment(file, noteId) {
   const base64 = await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1185,11 +1178,11 @@ function isImageAttachment(att) {
 }
 
 // ── AI helpers ────────────────────────────────────────────────────────────────
-function aiKey()   { return userSettings.aiApiKey || ANTHROPIC_KEY_DEFAULT; }
+function aiKey()   { return settings.aiApiKey || ANTHROPIC_KEY_DEFAULT; }
 function aiModel() {
-  if (userSettings.aiModel) return userSettings.aiModel;
-  if (userSettings.aiProvider === 'gemini') return 'gemini-2.5-flash';
-  if (userSettings.aiProvider === 'openai') return 'gpt-4o-mini';
+  if (settings.aiModel) return settings.aiModel;
+  if (settings.aiProvider === 'gemini') return 'gemini-2.5-flash';
+  if (settings.aiProvider === 'openai') return 'gpt-4o-mini';
   return CLAUDE_MODEL;
 }
 
@@ -1304,8 +1297,8 @@ async function aiTags(content) {
   const stripped = (content || '').replace(/#[\w\u00C0-\u024F-]+/g, '').replace(/<[^>]+>/g, '').trim();
   if (stripped.length < 15) return [];
   const text = stripped.slice(0, 2000);
-  if (userSettings.aiProvider === 'gemini') return await geminiTags(text);
-  if (userSettings.aiProvider === 'openai') return await openaiTags(text);
+  if (settings.aiProvider === 'gemini') return await geminiTags(text);
+  if (settings.aiProvider === 'openai') return await openaiTags(text);
   return await claudeTags(text);
 }
 
@@ -2828,59 +2821,98 @@ function applyShowTags() {
   document.body.classList.toggle('hide-tags', !settings.showTags);
 }
 
+// ── Sync all control values from settings (called after async DB load) ────────
+function syncSettingsControls() {
+  const el = id => document.getElementById(id);
+  const s = settings;
+
+  const infiniteToggle = el('setting-infinite-scroll');
+  const maxHeightSlider = el('setting-max-height');
+  const maxHeightVal    = el('setting-max-height-val');
+  if (infiniteToggle)   infiniteToggle.checked = s.infiniteScroll;
+  if (maxHeightSlider)  maxHeightSlider.value  = s.maxHeight;
+  if (maxHeightVal)     maxHeightVal.textContent = s.maxHeight === 0 ? 'Off' : s.maxHeight + 'px';
+
+  const mobileFontSlider = el('setting-mobile-font');
+  const mobileFontVal    = el('setting-mobile-font-val');
+  if (mobileFontSlider) mobileFontSlider.value = s.mobileFontSize || 15;
+  if (mobileFontVal)    mobileFontVal.textContent = (s.mobileFontSize || 15) + 'px';
+
+  const fontSelect = el('setting-font-family');
+  if (fontSelect) fontSelect.value = s.fontFamily || "'DM Sans', sans-serif";
+
+  const attPerPageSlider = el('setting-att-per-page');
+  const attPerPageVal    = el('setting-att-per-page-val');
+  if (attPerPageSlider) attPerPageSlider.value = s.attachmentsPerPage || 27;
+  if (attPerPageVal)    attPerPageVal.textContent = s.attachmentsPerPage || 27;
+
+  const feedWidthSlider = el('setting-feed-width');
+  const feedWidthVal    = el('setting-feed-width-val');
+  if (feedWidthSlider) feedWidthSlider.value = s.feedMaxWidth || 700;
+  if (feedWidthVal)    feedWidthVal.textContent = (s.feedMaxWidth || 700) + 'px';
+
+  const offlineDaysSlider = el('setting-offline-days');
+  const offlineDaysVal    = el('setting-offline-days-val');
+  const offlineAttToggle  = el('setting-offline-attachments');
+  if (offlineDaysSlider) offlineDaysSlider.value = s.offlineDays;
+  if (offlineDaysVal)    offlineDaysVal.textContent = s.offlineDays === 0 ? 'Off' : s.offlineDays + ' days';
+  if (offlineAttToggle)  offlineAttToggle.checked = s.offlineCacheAttachments;
+
+  const aiProviderSelect = el('setting-ai-provider');
+  const aiKeyInput       = el('setting-ai-key');
+  const aiModelInput     = el('setting-ai-model');
+  if (aiProviderSelect) aiProviderSelect.value = s.aiProvider || 'claude';
+  if (aiKeyInput)       aiKeyInput.value       = s.aiApiKey   || '';
+  if (aiModelInput)     aiModelInput.value     = s.aiModel    || '';
+
+  const showTagsToggle     = el('setting-show-tags');
+  const tagCategoriesInput = el('setting-tag-categories');
+  const tagPeopleInput     = el('setting-tag-people');
+  if (showTagsToggle)       showTagsToggle.checked   = s.showTags !== false;
+  if (tagCategoriesInput)   tagCategoriesInput.value = s.tagCategories || '';
+  if (tagPeopleInput)       tagPeopleInput.value     = s.tagPeople     || '';
+
+  // Update active theme swatch
+  document.querySelectorAll('.theme-swatch').forEach((sw, i) => {
+    sw.classList.toggle('active', THEMES[i]?.id === s.theme);
+  });
+}
+
 // ── Settings page controls ────────────────────────────────────────────────────
 function initSettingsControls() {
-  const infiniteToggle = document.getElementById('setting-infinite-scroll');
+  const infiniteToggle  = document.getElementById('setting-infinite-scroll');
   const maxHeightSlider = document.getElementById('setting-max-height');
   const maxHeightVal    = document.getElementById('setting-max-height-val');
-
-
-  infiniteToggle.checked = settings.infiniteScroll;
-  maxHeightSlider.value  = settings.maxHeight;
-  maxHeightVal.textContent = settings.maxHeight === 0 ? 'Off' : settings.maxHeight + 'px';
-
   const mobileFontSlider = document.getElementById('setting-mobile-font');
   const mobileFontVal    = document.getElementById('setting-mobile-font-val');
-  mobileFontSlider.value = settings.mobileFontSize || 15;
-  mobileFontVal.textContent = (settings.mobileFontSize || 15) + 'px';
-  mobileFontSlider.addEventListener('input', () => {
-    settings.mobileFontSize = parseInt(mobileFontSlider.value);
-    mobileFontVal.textContent = settings.mobileFontSize + 'px';
-    applyMobileFontSize();
-    saveSettings();
-  });
-
-  const fontSelect = document.getElementById('setting-font-family');
-  fontSelect.value = settings.fontFamily || "'DM Sans', sans-serif";
-  fontSelect.addEventListener('change', () => {
-    settings.fontFamily = fontSelect.value;
-    applyFontFamily();
-    saveSettings();
-  });
-
+  const fontSelect       = document.getElementById('setting-font-family');
   const attPerPageSlider = document.getElementById('setting-att-per-page');
   const attPerPageVal    = document.getElementById('setting-att-per-page-val');
-  attPerPageSlider.value = settings.attachmentsPerPage || 27;
-  attPerPageVal.textContent = settings.attachmentsPerPage || 27;
-  attPerPageSlider.addEventListener('input', () => {
-    settings.attachmentsPerPage = parseInt(attPerPageSlider.value);
-    attPerPageVal.textContent = settings.attachmentsPerPage;
-    saveSettings();
-    if (currentView === 'attachments') renderFeed();
-  });
+  const feedWidthSlider  = document.getElementById('setting-feed-width');
+  const feedWidthVal     = document.getElementById('setting-feed-width-val');
+  const offlineDaysSlider = document.getElementById('setting-offline-days');
+  const offlineDaysVal    = document.getElementById('setting-offline-days-val');
+  const offlineAttToggle  = document.getElementById('setting-offline-attachments');
+  const offlineCacheBtn   = document.getElementById('btn-refresh-offline-cache');
+  const offlineCacheStatus = document.getElementById('offline-cache-status');
+  const aiProviderSelect  = document.getElementById('setting-ai-provider');
+  const aiKeyInput        = document.getElementById('setting-ai-key');
+  const aiModelInput      = document.getElementById('setting-ai-model');
+  const showTagsToggle    = document.getElementById('setting-show-tags');
+  const tagCategoriesInput = document.getElementById('setting-tag-categories');
+  const tagPeopleInput    = document.getElementById('setting-tag-people');
+  const tagAllBtn         = document.getElementById('btn-tag-all-untagged');
+  const tagAllStatus      = document.getElementById('tag-all-status');
 
-  const feedWidthSlider = document.getElementById('setting-feed-width');
-  const feedWidthVal    = document.getElementById('setting-feed-width-val');
-  feedWidthSlider.value = settings.feedMaxWidth || 700;
-  feedWidthVal.textContent = (settings.feedMaxWidth || 700) + 'px';
-  feedWidthSlider.addEventListener('input', () => {
-    settings.feedMaxWidth = parseInt(feedWidthSlider.value);
-    feedWidthVal.textContent = settings.feedMaxWidth + 'px';
-    applyFeedWidth();
-    saveSettings();
-  });
+  // Populate with current values
+  syncSettingsControls();
+  buildThemeGrid();
 
+  // Show current cache size on settings open
+  const cached = loadNotesCache();
+  if (cached.length) offlineCacheStatus.textContent = `Currently cached: ${cached.length} notes`;
 
+  // ── Event listeners ───────────────────────────────────────────────────────
   infiniteToggle.addEventListener('change', () => {
     settings.infiniteScroll = infiniteToggle.checked;
     saveSettings();
@@ -2892,25 +2924,34 @@ function initSettingsControls() {
     settings.maxHeight = parseInt(maxHeightSlider.value);
     maxHeightVal.textContent = settings.maxHeight === 0 ? 'Off' : settings.maxHeight + 'px';
   });
-  maxHeightSlider.addEventListener('change', () => {
+  maxHeightSlider.addEventListener('change', () => { saveSettings(); renderFeed(); });
+
+  mobileFontSlider.addEventListener('input', () => {
+    settings.mobileFontSize = parseInt(mobileFontSlider.value);
+    mobileFontVal.textContent = settings.mobileFontSize + 'px';
+    applyMobileFontSize();
     saveSettings();
-    renderFeed(); // re-render with new height
   });
 
+  fontSelect.addEventListener('change', () => {
+    settings.fontFamily = fontSelect.value;
+    applyFontFamily();
+    saveSettings();
+  });
 
+  attPerPageSlider.addEventListener('input', () => {
+    settings.attachmentsPerPage = parseInt(attPerPageSlider.value);
+    attPerPageVal.textContent = settings.attachmentsPerPage;
+    saveSettings();
+    if (currentView === 'attachments') renderFeed();
+  });
 
-  buildThemeGrid();
-
-  // ── Offline settings ─────────────────────────────────────────────────────
-  const offlineDaysSlider = document.getElementById('setting-offline-days');
-  const offlineDaysVal    = document.getElementById('setting-offline-days-val');
-  const offlineAttToggle  = document.getElementById('setting-offline-attachments');
-  const offlineCacheBtn   = document.getElementById('btn-refresh-offline-cache');
-  const offlineCacheStatus = document.getElementById('offline-cache-status');
-
-  offlineDaysSlider.value = settings.offlineDays;
-  offlineDaysVal.textContent = settings.offlineDays === 0 ? 'Off' : settings.offlineDays + ' days';
-  offlineAttToggle.checked = settings.offlineCacheAttachments;
+  feedWidthSlider.addEventListener('input', () => {
+    settings.feedMaxWidth = parseInt(feedWidthSlider.value);
+    feedWidthVal.textContent = settings.feedMaxWidth + 'px';
+    applyFeedWidth();
+    saveSettings();
+  });
 
   offlineDaysSlider.addEventListener('input', () => {
     settings.offlineDays = parseInt(offlineDaysSlider.value);
@@ -2926,7 +2967,7 @@ function initSettingsControls() {
     offlineCacheBtn.disabled = true;
     offlineCacheBtn.textContent = 'Refreshing…';
     offlineCacheStatus.textContent = '';
-    _prefetchRunning = false; // allow re-run
+    _prefetchRunning = false;
     await prefetchOfflineCache();
     const cached = loadNotesCache();
     offlineCacheStatus.textContent = cached.length
@@ -2936,40 +2977,9 @@ function initSettingsControls() {
     offlineCacheBtn.textContent = 'Refresh offline cache now';
   });
 
-  // Show current cache size on settings open
-  const cached = loadNotesCache();
-  if (cached.length) {
-    offlineCacheStatus.textContent = `Currently cached: ${cached.length} notes`;
-  }
-
-  // ── AI settings (DB-backed via userSettings) ──────────────────────────────
-  const aiProviderSelect = document.getElementById('setting-ai-provider');
-  const aiKeyInput       = document.getElementById('setting-ai-key');
-  const aiModelInput     = document.getElementById('setting-ai-model');
-
-  function refreshAiControls() {
-    aiProviderSelect.value = userSettings.aiProvider || 'claude';
-    aiKeyInput.value       = userSettings.aiApiKey   || '';
-    aiModelInput.value     = userSettings.aiModel    || '';
-  }
-  refreshAiControls();
-  // Re-populate once user settings finish loading from DB
-  loadUserSettings().then(refreshAiControls);
-
-  aiProviderSelect.addEventListener('change', () => { userSettings.aiProvider = aiProviderSelect.value; putUserSettings(); });
-  aiKeyInput.addEventListener('change',   () => { userSettings.aiApiKey = aiKeyInput.value.trim(); putUserSettings(); });
-  aiModelInput.addEventListener('change', () => { userSettings.aiModel  = aiModelInput.value.trim(); putUserSettings(); });
-
-  // ── Tag settings ──────────────────────────────────────────────────────────
-  const showTagsToggle     = document.getElementById('setting-show-tags');
-  const tagCategoriesInput = document.getElementById('setting-tag-categories');
-  const tagPeopleInput     = document.getElementById('setting-tag-people');
-  const tagAllBtn          = document.getElementById('btn-tag-all-untagged');
-  const tagAllStatus       = document.getElementById('tag-all-status');
-
-  showTagsToggle.checked    = settings.showTags !== false;
-  tagCategoriesInput.value  = settings.tagCategories || '';
-  tagPeopleInput.value      = settings.tagPeople     || '';
+  aiProviderSelect.addEventListener('change', () => { settings.aiProvider = aiProviderSelect.value; saveSettings(); });
+  aiKeyInput.addEventListener('input',   () => { settings.aiApiKey = aiKeyInput.value.trim(); saveSettings(); });
+  aiModelInput.addEventListener('input', () => { settings.aiModel  = aiModelInput.value.trim(); saveSettings(); });
 
   showTagsToggle.addEventListener('change', () => {
     settings.showTags = showTagsToggle.checked;
@@ -3001,7 +3011,7 @@ function initSettingsControls() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-loadSettings();
+// Apply defaults immediately for fast render, then load from DB
 applyFeedWidth();
 applyFontFamily();
 applyTheme(settings.theme);
@@ -3154,7 +3164,7 @@ document.getElementById('content').classList.toggle('sidebar-visible', sidebarMQ
 
 initSettingsControls();
 if (initAuth()) {
-  loadUserSettings(); // load AI provider/key into userSettings (non-blocking)
+  loadSettings(); // async: fetches from DB, re-applies, syncs controls
   loadMemos();
 }
 
