@@ -869,6 +869,37 @@
           <div class="theme-grid" id="theme-grid"></div>
         </div>
 
+        <div class="settings-section">
+          <div class="settings-section-title">Offline</div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Cache notes for offline</div>
+              <div class="settings-desc">Fetch and store notes from the last N days when online</div>
+            </div>
+            <div class="settings-control" style="display:flex;align-items:center;gap:8px">
+              <input type="range" class="settings-slider" id="setting-offline-days" min="0" max="30" step="1" value="7">
+              <span class="slider-val" id="setting-offline-days-val">7 days</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Cache images offline</div>
+              <div class="settings-desc">Pre-fetch image attachments so they load without a connection</div>
+            </div>
+            <div class="settings-control">
+              <label class="toggle">
+                <input type="checkbox" id="setting-offline-attachments">
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <button id="btn-refresh-offline-cache" style="font-size:13px;padding:6px 14px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">Refresh offline cache now</button>
+            <div class="settings-desc" id="offline-cache-status"></div>
+          </div>
+        </div>
+
 
       </div>
     </main>
@@ -946,6 +977,8 @@ let settings = {
   feedMaxWidth: 700,         // px
   mobileFontSize: 15,        // px, mobile only
   fontFamily: "'DM Sans', sans-serif",
+  offlineDays: 7,            // 0 = off; days of notes to cache for offline
+  offlineCacheAttachments: false,
 };
 function loadSettings() {
   try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); if (s) settings = Object.assign(settings, s); } catch(e) {}
@@ -1305,6 +1338,78 @@ document.getElementById('save-btn').addEventListener('click', async () => {
   saveBtn.textContent = 'Save';
 });
 
+// ── Offline cache ─────────────────────────────────────────────────────────────
+const NOTES_CACHE_KEY = 'noteflow_notes_cache';
+const ATT_CACHE_NAME  = 'noteflow-attachments-v1';
+
+function saveNotesCache(notes) {
+  try { localStorage.setItem(NOTES_CACHE_KEY, JSON.stringify(notes)); } catch(e) {}
+}
+function loadNotesCache() {
+  try { return JSON.parse(localStorage.getItem(NOTES_CACHE_KEY)) || []; } catch(e) { return []; }
+}
+
+// Fetch image blob — checks offline cache first, then network (and caches if setting enabled)
+async function getAttachmentBlob(att, url) {
+  const cacheKey = new Request('/offline-att/' + att.id);
+  try {
+    const cache = await caches.open(ATT_CACHE_NAME);
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached.blob();
+    const res = await fetch(url, { credentials: 'omit', headers: authHeaders() });
+    if (!res.ok) throw new Error(res.status);
+    if (settings.offlineCacheAttachments) cache.put(cacheKey, res.clone());
+    return res.blob();
+  } catch(e) {
+    throw e;
+  }
+}
+
+// Background: fetch all notes within offlineDays window and optionally pre-cache attachments
+let _prefetchRunning = false;
+async function prefetchOfflineCache() {
+  if (_prefetchRunning || !settings.offlineDays || !navigator.onLine) return;
+  _prefetchRunning = true;
+  try {
+    const cutoffSecs = Math.floor(Date.now() / 1000) - settings.offlineDays * 86400;
+    const allNotes = [];
+    let cursor = null;
+    let done = false;
+    while (!done) {
+      const qs = new URLSearchParams({ pageSize: 100 });
+      if (cursor) qs.set('cursor', cursor);
+      const data = await apiGet('/notes?' + qs);
+      const notes = data.notes || [];
+      for (const note of notes) {
+        if ((note.created_at || 0) < cutoffSecs) { done = true; break; }
+        allNotes.push(note);
+      }
+      cursor = data.nextCursor || null;
+      if (!cursor) done = true;
+    }
+    saveNotesCache(allNotes);
+
+    if (settings.offlineCacheAttachments) {
+      const cache = await caches.open(ATT_CACHE_NAME);
+      for (const note of allNotes) {
+        for (const att of (note.attachments || [])) {
+          if (!att.id || !isImageAttachment(att)) continue;
+          const cacheKey = new Request('/offline-att/' + att.id);
+          if (await cache.match(cacheKey)) continue; // already cached
+          try {
+            const res = await fetch(attachmentUrl(att), { credentials: 'omit', headers: authHeaders() });
+            if (res.ok) cache.put(cacheKey, res);
+          } catch(e) {}
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('Offline prefetch failed:', e);
+  } finally {
+    _prefetchRunning = false;
+  }
+}
+
 // ── Load notes ────────────────────────────────────────────────────────────────
 async function loadMemos(append = false) {
   try {
@@ -1326,8 +1431,21 @@ async function loadMemos(append = false) {
     nextCursor = data.nextCursor || null;
     document.getElementById('load-more').style.display = nextCursor ? 'block' : 'none';
     renderFeed(append);
+    // Trigger background prefetch of the full offline cache (debounced — only on first page load)
+    if (!append && currentView === 'all') setTimeout(prefetchOfflineCache, 2000);
   } catch(err) {
     console.error(err);
+    if (!append && currentView === 'all') {
+      const cached = loadNotesCache();
+      if (cached.length) {
+        allMemos = cached;
+        nextCursor = null;
+        document.getElementById('load-more').style.display = 'none';
+        renderFeed();
+        toast('📵 Showing cached notes');
+        return;
+      }
+    }
     toast('Failed to load notes');
   }
 }
@@ -1529,8 +1647,7 @@ function renderAttachmentsGallery(feed, memos) {
         img.className = 'att-gallery-img';
         img.alt = fname;
         img.style.opacity = '0.4';
-        fetch(url, { credentials: 'omit', headers: authHeaders() })
-          .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+        getAttachmentBlob(att, url)
           .then(blob => { img.src = URL.createObjectURL(blob); img.style.opacity = '1'; img._blobUrl = img.src; })
           .catch(() => { img.style.opacity = '0.3'; });
         img.addEventListener('click', () => { if (img._blobUrl) openLightbox(img._blobUrl, [img._blobUrl]); });
@@ -1881,9 +1998,8 @@ function buildCard(memo) {
         const img = document.createElement('img');
         img.loading = 'lazy';
         img.style.opacity = '0.4';
-        // Fetch with auth token so private attachments load
-        fetch(url, { credentials: 'omit', headers: authHeaders() })
-          .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+        // Fetch with auth token (checks offline cache first)
+        getAttachmentBlob(att, url)
           .then(blob => {
             img.src = URL.createObjectURL(blob);
             img.style.opacity = '1';
@@ -2540,6 +2656,47 @@ function initSettingsControls() {
 
 
   buildThemeGrid();
+
+  // ── Offline settings ─────────────────────────────────────────────────────
+  const offlineDaysSlider = document.getElementById('setting-offline-days');
+  const offlineDaysVal    = document.getElementById('setting-offline-days-val');
+  const offlineAttToggle  = document.getElementById('setting-offline-attachments');
+  const offlineCacheBtn   = document.getElementById('btn-refresh-offline-cache');
+  const offlineCacheStatus = document.getElementById('offline-cache-status');
+
+  offlineDaysSlider.value = settings.offlineDays;
+  offlineDaysVal.textContent = settings.offlineDays === 0 ? 'Off' : settings.offlineDays + ' days';
+  offlineAttToggle.checked = settings.offlineCacheAttachments;
+
+  offlineDaysSlider.addEventListener('input', () => {
+    settings.offlineDays = parseInt(offlineDaysSlider.value);
+    offlineDaysVal.textContent = settings.offlineDays === 0 ? 'Off' : settings.offlineDays + ' days';
+    saveSettings();
+  });
+  offlineAttToggle.addEventListener('change', () => {
+    settings.offlineCacheAttachments = offlineAttToggle.checked;
+    saveSettings();
+  });
+  offlineCacheBtn.addEventListener('click', async () => {
+    if (!navigator.onLine) { toast('Cannot refresh — you\'re offline'); return; }
+    offlineCacheBtn.disabled = true;
+    offlineCacheBtn.textContent = 'Refreshing…';
+    offlineCacheStatus.textContent = '';
+    _prefetchRunning = false; // allow re-run
+    await prefetchOfflineCache();
+    const cached = loadNotesCache();
+    offlineCacheStatus.textContent = cached.length
+      ? `Cached ${cached.length} notes` + (settings.offlineCacheAttachments ? ' + images' : '')
+      : 'Nothing cached (offline caching is off)';
+    offlineCacheBtn.disabled = false;
+    offlineCacheBtn.textContent = 'Refresh offline cache now';
+  });
+
+  // Show current cache size on settings open
+  const cached = loadNotesCache();
+  if (cached.length) {
+    offlineCacheStatus.textContent = `Currently cached: ${cached.length} notes`;
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
