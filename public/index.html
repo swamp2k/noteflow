@@ -155,7 +155,7 @@
   }
 
   .toolbar {
-    display: flex; flex-wrap: wrap; gap: 1px;
+    display: flex; flex-wrap: nowrap; gap: 1px; align-items: center;
     padding: 6px 10px;
     border-bottom: 1px solid var(--border);
     background: #fafaf8;
@@ -175,6 +175,12 @@
   .tb-btn:hover { background: var(--accent-bg); color: var(--accent); }
   .tb-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
   .tb-sep { width: 1px; background: var(--border); margin: 4px 3px; align-self: stretch; }
+  .tb-select {
+    height: 28px; border: none; border-radius: 5px; background: none;
+    color: var(--text-soft); font-family: var(--font-body); font-size: 11px; font-weight: 700;
+    padding: 0 4px; cursor: pointer; outline: none;
+  }
+  .tb-select:hover { background: var(--accent-bg); color: var(--accent); }
 
   #editor {
     min-height: 42px; max-height: 260px; overflow-y: auto;
@@ -527,7 +533,7 @@
   .card-editing .card-content-wrap { display: none; }
   .card-editing .card-tags { display: none; }
   .inline-toolbar {
-    display: flex; flex-wrap: wrap; gap: 1px;
+    display: flex; flex-wrap: nowrap; gap: 1px; align-items: center;
     padding: 5px 8px; border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border); background: #fafaf8;
   }
@@ -727,8 +733,11 @@
             <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><path d="M16 6C16 6 14.5 4 12 4C9.5 4 7 5.5 7 8C7 10.5 9 11.5 12 12"/><path d="M8 18C8 18 9.5 20 12 20C14.5 20 17 18.5 17 16C17 13.5 15 12.5 12 12"/></svg>
           </button>
           <div class="tb-sep"></div>
-          <button class="tb-btn" data-cmd="h1" title="Heading 1"><span style="font-size:10px;font-weight:700">H1</span></button>
-          <button class="tb-btn" data-cmd="h2" title="Heading 2"><span style="font-size:10px;font-weight:700">H2</span></button>
+          <select class="tb-select" id="tb-heading" title="Heading">
+            <option value="">¶</option>
+            <option value="h1">H1</option>
+            <option value="h2">H2</option>
+          </select>
           <div class="tb-sep"></div>
           <button class="tb-btn" data-cmd="insertUnorderedList" title="Bullet list">
             <svg viewBox="0 0 24 24"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg>
@@ -1201,8 +1210,6 @@ document.querySelector('.toolbar').addEventListener('mousedown', e => {
   const editor = document.getElementById('editor');
   editor.focus();
 
-  if (cmd === 'h1') { document.execCommand('formatBlock', false, 'h1'); return; }
-  if (cmd === 'h2') { document.execCommand('formatBlock', false, 'h2'); return; }
   if (cmd === 'quote') { document.execCommand('formatBlock', false, 'blockquote'); return; }
   if (cmd === 'code') {
     const sel = window.getSelection();
@@ -1225,6 +1232,14 @@ document.querySelector('.toolbar').addEventListener('mousedown', e => {
     return;
   }
   document.execCommand(cmd, false, null);
+});
+
+document.getElementById('tb-heading').addEventListener('change', function() {
+  const val = this.value;
+  document.getElementById('editor').focus();
+  if (val) document.execCommand('formatBlock', false, val);
+  else document.execCommand('formatBlock', false, 'p');
+  this.value = '';
 });
 
 // ── HTML → Markdown ───────────────────────────────────────────────────────────
@@ -1846,8 +1861,11 @@ function buildCard(memo) {
     <button class="tb-btn" data-cmd="underline" title="Underline"><u>U</u></button>
     <button class="tb-btn" data-cmd="strikeThrough" title="Strike"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><path d="M16 6C16 6 14.5 4 12 4C9.5 4 7 5.5 7 8C7 10.5 9 11.5 12 12"/><path d="M8 18C8 18 9.5 20 12 20C14.5 20 17 18.5 17 16C17 13.5 15 12.5 12 12"/></svg></button>
     <div class="tb-sep"></div>
-    <button class="tb-btn" data-cmd="h1" title="H1"><span style="font-size:10px;font-weight:700">H1</span></button>
-    <button class="tb-btn" data-cmd="h2" title="H2"><span style="font-size:10px;font-weight:700">H2</span></button>
+    <select class="tb-select" data-role="heading" title="Heading">
+      <option value="">¶</option>
+      <option value="h1">H1</option>
+      <option value="h2">H2</option>
+    </select>
     <div class="tb-sep"></div>
     <button class="tb-btn" data-cmd="insertUnorderedList" title="Bullet"><svg viewBox="0 0 24 24"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg></button>
     <button class="tb-btn" data-cmd="insertOrderedList" title="Numbered"><svg viewBox="0 0 24 24"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4" stroke="currentColor"/><path d="M4 10h2" stroke="currentColor"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" stroke="currentColor"/></svg></button>
@@ -1855,14 +1873,20 @@ function buildCard(memo) {
     <button class="tb-btn" data-cmd="quote" title="Quote"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg></button>
     <button class="tb-btn" data-cmd="link" title="Link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>`;
 
+  inlineTb.querySelector('[data-role="heading"]').addEventListener('change', function() {
+    const val = this.value;
+    inlineEditor.focus();
+    if (val) document.execCommand('formatBlock', false, val);
+    else document.execCommand('formatBlock', false, 'p');
+    this.value = '';
+  });
+
   inlineTb.addEventListener('mousedown', e => {
     const btn = e.target.closest('.tb-btn');
     if (!btn) return;
     e.preventDefault();
     inlineEditor.focus();
     const cmd = btn.dataset.cmd;
-    if (cmd === 'h1') { document.execCommand('formatBlock', false, 'h1'); return; }
-    if (cmd === 'h2') { document.execCommand('formatBlock', false, 'h2'); return; }
     if (cmd === 'quote') { document.execCommand('formatBlock', false, 'blockquote'); return; }
     if (cmd === 'link') {
       const url = prompt('URL:');
