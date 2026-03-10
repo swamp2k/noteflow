@@ -1071,28 +1071,30 @@ Be concise — 1 to 3 sentences max. Write in the same language as the main cont
 async function claudeTags(content) {
   const stripped = content.replace(/#[\w\u00C0-\u024F-]+/g, '').replace(/<[^>]+>/g, '').trim();
   if (stripped.length < 15) return [];
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: CLAUDE_MODEL, max_tokens: 100,
-      system: `Tagging assistant for a personal note app. Content may be Danish, English, or mixed.
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL, max_tokens: 100,
+        system: `Tagging assistant for a personal note app. Content may be Danish, English, or mixed.
 Return 3-5 specific tags as a JSON array only. Example: ["opskrift","pasta","aftensmad"]
 - Lowercase, hyphens for spaces (e.g. "meeting-notes")
 - Specific not generic — avoid: note, misc, general, text
 - Never include: ${SPECIAL_TAGS.join(', ')}`,
-      messages: [{ role: 'user', content: stripped.slice(0, 1500) }]
-    })
-  });
-  const d = await r.json();
-  const raw = d.content?.[0]?.text?.trim() || '[]';
-  try { return JSON.parse(raw.replace(/```json|```/g, '').trim()); }
-  catch { return []; }
+        messages: [{ role: 'user', content: stripped.slice(0, 1500) }]
+      })
+    });
+    const d = await r.json();
+    const raw = d.content?.[0]?.text?.trim() || '[]';
+    try { return JSON.parse(raw.replace(/```json|```/g, '').trim()); }
+    catch { return []; }
+  } catch { return []; }
 }
 
 // ── Image handling ────────────────────────────────────────────────────────────
@@ -1231,6 +1233,26 @@ document.getElementById('save-btn').addEventListener('click', async () => {
   const saveBtn = document.getElementById('save-btn');
   saveBtn.disabled = true;
   saveBtn.innerHTML = '<span class="spinner"></span>';
+
+  // Offline: queue note and return early
+  if (!navigator.onLine) {
+    const content = htmlToMarkdown(html);
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'QUEUE_MEMO',
+        payload: { content, token: getCFToken() }
+      });
+      editor.innerHTML = '';
+      pendingImages = [];
+      renderImagePreviews();
+      toast('📥 Saved offline — will sync when reconnected');
+    } else {
+      toast('You\'re offline — note could not be saved');
+    }
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
+    return;
+  }
 
   try {
     let content = htmlToMarkdown(html);
@@ -2699,7 +2721,7 @@ loadAccountInfo();
   <script>
   // ── Service Worker Registration ───────────────────────────────────────────
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js?v=19').then(reg => {
+    navigator.serviceWorker.register('/service-worker.js?v=20').then(reg => {
       console.log('SW registered');
 
       // Listen for messages from SW (queue updates)
@@ -2810,27 +2832,6 @@ loadAccountInfo();
       if (wrap) wrap.classList.add('expanded');
     }
   }
-
-  // ── Offline-aware memo save ──────────────────────────────────────────────
-  // Wrap the original saveMemo to queue offline
-  const _origSaveMemo = window.saveMemo;
-  window.saveMemo = async function(...args) {
-    if (navigator.onLine) {
-      return _origSaveMemo ? _origSaveMemo(...args) : undefined;
-    }
-    // Offline: queue the note
-    const composer = document.getElementById('composer-input');
-    const content = composer ? composer.value.trim() : '';
-    if (!content) return;
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'QUEUE_MEMO',
-        payload: { content, token: getCFToken() }
-      });
-      if (composer) composer.value = '';
-      toast('📥 Saved offline — will sync when reconnected');
-    }
-  };
 
   // Check for share payload after SW is ready
   if (document.readyState === 'loading') {

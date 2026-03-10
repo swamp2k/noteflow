@@ -1,12 +1,37 @@
 // NoteFlow Service Worker
-const CACHE_VERSION = 'noteflow-v9';
+const CACHE_VERSION = 'noteflow-v10';
 const API_BASE = 'https://noteflow-api.jeppesen.cc/api';
+
+// Files to cache for offline app shell
+const APP_SHELL = [
+  '/',
+  '/index.html',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/favicon.png',
+];
 
 // ── Offline memo queue (stored in SW scope) ───────────────────────────────────
 let memoQueue = [];
 
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_VERSION)
+      .then(cache => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_VERSION && k !== 'noteflow-v2')
+            .map(k => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
+  );
+});
 
 // ── Message handler ───────────────────────────────────────────────────────────
 self.addEventListener('message', async event => {
@@ -59,7 +84,7 @@ self.addEventListener('message', async event => {
   }
 });
 
-// ── Fetch: handle share-target ────────────────────────────────────────────────
+// ── Fetch handler ─────────────────────────────────────────────────────────────
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
@@ -69,13 +94,37 @@ self.addEventListener('fetch', event => {
       const params = url.searchParams;
       const content = [params.get('title'), params.get('text'), params.get('url')]
         .filter(Boolean).join('\n');
-      // Store in cache for the main page to pick up
       const cache = await caches.open('noteflow-v2');
       await cache.put('/__share_pending__', new Response(JSON.stringify({ content }), {
         headers: { 'Content-Type': 'application/json' }
       }));
       return Response.redirect('/', 303);
     })());
+    return;
+  }
+
+  // App shell: navigation requests → network first, fall back to cached index.html
+  if (event.request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const networkResponse = await fetch(event.request);
+        // Update cache with fresh copy
+        const cache = await caches.open(CACHE_VERSION);
+        cache.put(event.request, networkResponse.clone());
+        return networkResponse;
+      } catch {
+        const cached = await caches.match('/index.html');
+        return cached || new Response('Offline', { status: 503 });
+      }
+    })());
+    return;
+  }
+
+  // Static assets (icons etc): cache first
+  if (url.origin === self.location.origin && APP_SHELL.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request))
+    );
     return;
   }
 });
