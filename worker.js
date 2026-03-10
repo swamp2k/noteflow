@@ -453,11 +453,26 @@ export default {
 
       // ── POST /api/attachments ───────────────────────────────────────────────
       if (path === '/api/attachments' && method === 'POST') {
-        const body = await request.json();
-        const { note_id, filename, type: mimeType, content: b64content } = body;
+        const contentType = request.headers.get('Content-Type') || '';
+        let note_id, filename, mimeType, binary, b64content;
 
-        if (!note_id || !filename || !b64content) {
-          return err('Missing note_id, filename, or content', 400, origin);
+        if (contentType.includes('application/json')) {
+          // Legacy: JSON body with base64-encoded content
+          const body = await request.json();
+          ({ note_id, filename, type: mimeType, content: b64content } = body);
+          if (!note_id || !filename || !b64content)
+            return err('Missing note_id, filename, or content', 400, origin);
+          const binaryStr = atob(b64content);
+          binary = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) binary[i] = binaryStr.charCodeAt(i);
+        } else {
+          // Binary upload: metadata in query params, raw file as body
+          note_id  = url.searchParams.get('note_id');
+          filename = url.searchParams.get('filename');
+          mimeType = contentType.split(';')[0].trim() || 'application/octet-stream';
+          if (!note_id || !filename)
+            return err('Missing note_id or filename query params', 400, origin);
+          binary = new Uint8Array(await request.arrayBuffer());
         }
 
         // Verify note belongs to user
@@ -466,26 +481,35 @@ export default {
         ).bind(note_id, userId).first();
         if (!note) return err('Note not found', 404, origin);
 
-        // Decode base64
-        const binary = Uint8Array.from(atob(b64content), c => c.charCodeAt(0));
-
         // Store in R2
         const attId = nanoid('a_');
         const r2Key = `${userId}/${note_id}/${attId}/${filename}`;
 
         await env.ATTACHMENTS.put(r2Key, binary, {
-          httpMetadata: { contentType: mimeType || 'application/octet-stream' },
+          httpMetadata: { contentType: mimeType },
           customMetadata: { filename, userId, noteId: note_id },
         });
 
         // Write metadata to D1
         await env.DB.prepare(
           'INSERT INTO attachments (id, note_id, user_id, filename, mime_type, size_bytes, r2_key) VALUES (?, ?, ?, ?, ?, ?, ?)'
-        ).bind(attId, note_id, userId, filename, mimeType || 'application/octet-stream', binary.length, r2Key).run();
+        ).bind(attId, note_id, userId, filename, mimeType, binary.length, r2Key).run();
 
         // Fire indexing in the background — response returns immediately
-        const willIndex = !!(env.ANTHROPIC_KEY && shouldIndex(mimeType, filename));
+        // skip_index=1 defers indexing to /api/admin/reindex (used during bulk import)
+        const skipIndex = url.searchParams.get('skip_index') === '1';
+        const willIndex = !skipIndex && !!(env.ANTHROPIC_KEY && shouldIndex(mimeType, filename));
         if (willIndex) {
+          if (!b64content) {
+            // Convert binary back to base64 for the indexing function
+            // Use chunked approach to avoid O(n²) string concat on large files
+            const CHUNK = 8192;
+            let str = '';
+            for (let i = 0; i < binary.length; i += CHUNK) {
+              str += String.fromCharCode(...binary.subarray(i, i + CHUNK));
+            }
+            b64content = btoa(str);
+          }
           ctx.waitUntil(
             indexDocument(env, attId, filename, mimeType, b64content)
               .catch(e => console.error('Index error:', e.message))
