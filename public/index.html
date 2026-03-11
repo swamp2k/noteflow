@@ -4196,8 +4196,8 @@ async function buildEgoGraph(centralTag) {
     }
   }
 
+  setTcMode('network');           // clears tcEgoData — must set it after
   tcEgoData = { tags: egoNodes, edges, center: centralTag };
-  setTcMode('network');
   if (tcSvg) buildForceGraph();
   else loadTagCloud();
 }
@@ -4264,11 +4264,24 @@ function kMeans(vectors, k, iterations = 50) {
 
 const CLUSTER_COLORS = ['#5b9bd5','#4a9e72','#c49a3c','#9b7fd4','#c2405a','#1a7fa8','#56c4a0','#c17f3e'];
 
-function tcSurpriseMe() {
+async function tcSurpriseMe() {
   const resultsEl = document.getElementById('tc-embed-results');
   const hintEl    = document.getElementById('tc-embed-hint');
   const searchEl  = document.getElementById('tc-embed-search');
-  if (!tcEmbeddingVectors || Object.keys(tcEmbeddingVectors).length < 6) {
+
+  // Load embeddings from DB if not yet cached in this session
+  if (!tcEmbeddingVectors) {
+    if (hintEl) hintEl.textContent = 'Loading embeddings…';
+    try {
+      const data = await apiGet('/tags/embeddings');
+      tcEmbeddingVectors = {};
+      for (const { tag, vector } of data.embeddings) {
+        tcEmbeddingVectors[tag] = typeof vector === 'string' ? JSON.parse(vector) : vector;
+      }
+    } catch(e) { toast('Failed to load embeddings: ' + e.message); return; }
+    if (hintEl) hintEl.textContent = 'Type a concept above to find semantically related tags, or try Surprise me';
+  }
+  if (Object.keys(tcEmbeddingVectors).length < 4) {
     toast('Index tags first, then try Surprise me'); return;
   }
   if (searchEl) searchEl.value = '';
