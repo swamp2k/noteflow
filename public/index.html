@@ -1448,11 +1448,23 @@ function parseTagsJson(text) {
 // Extract first valid JSON object from a possibly-decorated AI response
 function extractJsonObject(text) {
   const stripped = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  // Try direct parse first
   try { return JSON.parse(stripped); } catch {}
-  const start = stripped.indexOf('{'), end = stripped.lastIndexOf('}');
-  if (start !== -1 && end > start) {
-    try { return JSON.parse(stripped.slice(start, end + 1)); } catch {}
+  // Find the outermost { } using proper brace counting (handles nested objects)
+  let depth = 0, start = -1, end = -1;
+  for (let i = 0; i < stripped.length; i++) {
+    const c = stripped[i];
+    if (c === '{') { if (depth === 0) start = i; depth++; }
+    else if (c === '}') { depth--; if (depth === 0 && start !== -1) { end = i; break; } }
   }
+  if (start !== -1 && end !== -1) {
+    const candidate = stripped.slice(start, end + 1);
+    try { return JSON.parse(candidate); } catch {}
+    // Remove trailing commas before ] or } (common AI mistake)
+    const fixed = candidate.replace(/,(\s*[}\]])/g, '$1');
+    try { return JSON.parse(fixed); } catch {}
+  }
+  console.error('[semantic] full raw response:', text);
   throw new Error('Could not parse JSON from AI response');
 }
 
@@ -3828,15 +3840,13 @@ Respond with ONLY this raw JSON (no markdown fences, no explanation):
       const d = await r.json(); text = d.choices?.[0]?.message?.content;
       if (!text) throw new Error('Empty response from OpenAI');
     } else {
-      // Use assistant prefill (start with '{') to guarantee JSON output
       const r = await fetch('https://api.anthropic.com/v1/messages',
         { method:'POST', headers:{'Content-Type':'application/json','x-api-key':aiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-          body:JSON.stringify({model:aiModel(),max_tokens:8192,messages:[{role:'user',content:prompt},{role:'assistant',content:'{'}]}) });
+          body:JSON.stringify({model:aiModel(),max_tokens:8192,messages:[{role:'user',content:prompt}]}) });
       const d = await r.json();
       if (!r.ok) throw new Error(`Claude ${r.status}: ${d?.error?.message||r.statusText}`);
-      const tail = d.content?.[0]?.text;
-      if (!tail && tail !== '') throw new Error(`Unexpected response: ${JSON.stringify(d).slice(0,200)}`);
-      text = '{' + tail; // prepend the prefilled opening brace
+      text = d.content?.[0]?.text;
+      if (!text) throw new Error(`Unexpected response: ${JSON.stringify(d).slice(0,200)}`);
     }
 
     console.log('[semantic] raw (first 800):', text.slice(0,800));
