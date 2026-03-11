@@ -1136,9 +1136,9 @@
               style="width:100%;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">
           </div>
           <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
-            <div class="settings-label">Gemini API key <span style="font-weight:400;color:var(--muted)">(for Embeddings view)</span></div>
-            <div class="settings-desc">Used only for the Embeddings tag view — get a free key at <a href="https://aistudio.google.com/" target="_blank" style="color:var(--accent)">ai.google.dev</a>. Not needed if Gemini is your main AI provider above.</div>
-            <input type="password" id="setting-gemini-key" placeholder="AIza…"
+            <div class="settings-label">Voyage AI key <span style="font-weight:400;color:var(--muted)">(for Embeddings view)</span></div>
+            <div class="settings-desc">Used for the Embeddings tag view (voyage-4 model). Get a key at <a href="https://www.voyageai.com/" target="_blank" style="color:var(--accent)">voyageai.com</a>.</div>
+            <input type="password" id="setting-voyage-key" placeholder="pa-…"
               style="width:100%;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">
           </div>
         </div>
@@ -1351,7 +1351,7 @@ let settings = {
   aiProvider: 'claude',
   aiApiKey:   '',
   aiModel:    '',
-  geminiApiKey: '',
+  voyageApiKey: '',
   _semanticCoords: null,
 };
 
@@ -3201,11 +3201,11 @@ function syncSettingsControls() {
   const aiProviderSelect = el('setting-ai-provider');
   const aiKeyInput       = el('setting-ai-key');
   const aiModelInput     = el('setting-ai-model');
-  const geminiKeyInput   = el('setting-gemini-key');
+  const voyageKeyInput   = el('setting-voyage-key');
   if (aiProviderSelect) aiProviderSelect.value = s.aiProvider  || 'claude';
   if (aiKeyInput)       aiKeyInput.value       = s.aiApiKey    || '';
   if (aiModelInput)     aiModelInput.value     = s.aiModel     || '';
-  if (geminiKeyInput)   geminiKeyInput.value   = s.geminiApiKey || '';
+  if (voyageKeyInput)   voyageKeyInput.value   = s.voyageApiKey || '';
 
   const showTagsToggle     = el('setting-show-tags');
   const tagCategoriesInput = el('setting-tag-categories');
@@ -3240,7 +3240,7 @@ function initSettingsControls() {
   const aiProviderSelect  = document.getElementById('setting-ai-provider');
   const aiKeyInput        = document.getElementById('setting-ai-key');
   const aiModelInput      = document.getElementById('setting-ai-model');
-  const geminiKeyInput    = document.getElementById('setting-gemini-key');
+  const voyageKeyInput    = document.getElementById('setting-voyage-key');
   const showTagsToggle    = document.getElementById('setting-show-tags');
   const tagCategoriesInput = document.getElementById('setting-tag-categories');
   const tagPeopleInput    = document.getElementById('setting-tag-people');
@@ -3323,7 +3323,7 @@ function initSettingsControls() {
   aiProviderSelect.addEventListener('change', () => { settings.aiProvider  = aiProviderSelect.value;       saveSettings(); });
   aiKeyInput.addEventListener('input',       () => { settings.aiApiKey    = aiKeyInput.value.trim();      saveSettings(); });
   aiModelInput.addEventListener('input',     () => { settings.aiModel     = aiModelInput.value.trim();    saveSettings(); });
-  if (geminiKeyInput) geminiKeyInput.addEventListener('input', () => { settings.geminiApiKey = geminiKeyInput.value.trim(); saveSettings(); });
+  if (voyageKeyInput) voyageKeyInput.addEventListener('input', () => { settings.voyageApiKey = voyageKeyInput.value.trim(); saveSettings(); });
 
   showTagsToggle.addEventListener('change', () => {
     settings.showTags = showTagsToggle.checked;
@@ -3943,27 +3943,22 @@ Respond with ONLY this raw JSON (no markdown fences, no explanation):
 // ── Embeddings view ───────────────────────────────────────────────────────────
 let tcEmbeddingVectors = null; // {tag: number[]} — fetched once, cached
 
-function geminiEmbedKey() {
-  return settings.geminiApiKey || (settings.aiProvider === 'gemini' ? settings.aiApiKey : '');
-}
-
-async function geminiEmbed(texts) {
-  const key = geminiEmbedKey();
-  if (!key) throw new Error('No Gemini API key. Add it in Settings → AI → Gemini key for embeddings.');
-  const requests = texts.map(text => ({
-    model: 'models/gemini-embedding-2-preview',
-    content: { parts: [{ text }] }
-  }));
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2-preview:batchEmbedContents?key=${key}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requests }) }
-  );
+// Voyage AI embeddings (voyage-4, 1024 dimensions)
+// input_type: "document" when indexing tags, "query" when searching
+async function voyageEmbed(texts, inputType = 'document') {
+  const key = settings.voyageApiKey;
+  if (!key) throw new Error('No Voyage AI key. Add it in Settings → AI → Voyage AI key.');
+  const r = await fetch('https://api.voyageai.com/v1/embeddings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+    body: JSON.stringify({ input: texts, model: 'voyage-4', input_type: inputType })
+  });
   if (!r.ok) {
     const e = await r.json().catch(() => ({}));
-    throw new Error(`Gemini ${r.status}: ${e?.error?.message || r.statusText}`);
+    throw new Error(`Voyage ${r.status}: ${e?.detail || r.statusText}`);
   }
   const d = await r.json();
-  return d.embeddings.map(e => e.values); // float[][]
+  return d.data.map(item => item.embedding); // float[][]
 }
 
 function cosineSimilarity(a, b) {
@@ -4003,12 +3998,13 @@ async function tcIndexTags() {
       indexBtn.style.display = 'none';
       return;
     }
-    const BATCH = 100; // Gemini batchEmbedContents supports up to 100 per request
+    // Voyage supports up to 1000 inputs per request — embed all missing tags at once
+    const BATCH = 1000;
     let done = 0;
     for (let i = 0; i < missing.length; i += BATCH) {
       const batch = missing.slice(i, i + BATCH);
-      indexBtn.textContent = `Indexing… ${Math.min(i + BATCH, missing.length)}/${missing.length}`;
-      const vectors = await geminiEmbed(batch);
+      indexBtn.textContent = `Indexing… ${batch.length} tags`;
+      const vectors = await voyageEmbed(batch, 'document');
       const embeddings = batch.map((tag, j) => ({ tag, vector: vectors[j] }));
       await fetch(API_BASE + '/tags/embeddings', {
         method: 'PUT', credentials: 'omit',
@@ -4065,7 +4061,7 @@ async function tcSearchEmbeddings(query) {
       resultsEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No indexed tags yet — click "Index tags" first.</div>';
       return;
     }
-    const [queryVec] = await geminiEmbed([query]);
+    const [queryVec] = await voyageEmbed([query], 'query');
     const tagCounts = {};
     (tagGraphData?.tags || []).forEach(t => { tagCounts[t.tag] = t.count; });
     const results = Object.entries(tcEmbeddingVectors)
