@@ -3951,11 +3951,11 @@ async function geminiEmbed(texts) {
   const key = geminiEmbedKey();
   if (!key) throw new Error('No Gemini API key. Add it in Settings → AI → Gemini key for embeddings.');
   const requests = texts.map(text => ({
-    model: 'models/gemini-embedding-001',
+    model: 'models/gemini-embedding-2-preview',
     content: { parts: [{ text }] }
   }));
   const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2-preview:batchEmbedContents?key=${key}`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requests }) }
   );
   if (!r.ok) {
