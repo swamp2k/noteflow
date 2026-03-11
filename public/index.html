@@ -570,48 +570,54 @@
   #settings-page.active { display: block; }
 
   /* ── Tag Cloud / Graph View ──────────────────────────────────────────────── */
-  #tag-cloud-page { display: none; padding: 0; }
-  #tag-cloud-page.active { display: flex; flex-direction: column; gap: 0; }
+  /* Lives outside <main> as a direct child of the body/app so it fills the full window */
+  #tag-cloud-page {
+    display: none; padding: 0; position: fixed;
+    top: var(--header-h); left: 0; right: 0; bottom: 0;
+    flex-direction: column; gap: 0; overflow: hidden;
+  }
+  #content.sidebar-visible + #tag-cloud-page { left: var(--sidebar-w); }
+  #tag-cloud-page.active { display: flex; }
   .tc-bar {
-    display: flex; align-items: center; gap: 8px; padding: 8px 0 10px;
-    flex-wrap: wrap; flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px; padding: 8px 16px 10px;
+    flex-wrap: wrap; flex-shrink: 0; background: var(--bg); border-bottom: 1px solid var(--border);
   }
   .tc-mode-switch {
-    display: flex; background: #1a1e25; border: 1px solid #252b35;
+    display: flex; background: var(--surface); border: 1px solid var(--border);
     border-radius: 8px; padding: 3px; gap: 2px;
   }
   .tc-mode-btn {
     padding: 5px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
     font-family: var(--font-body); cursor: pointer; border: none;
-    background: transparent; color: #8a8880; transition: all 0.2s;
+    background: transparent; color: var(--text-soft); transition: all 0.2s;
     display: flex; align-items: center; gap: 6px;
   }
-  .tc-mode-btn.active { background: #0d0f12; color: #e8e4dc; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  .tc-mode-btn.active { background: var(--bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
   .tc-mode-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .tc-mode-dot.network { background: #5b9bd5; }
   .tc-mode-dot.semantic { background: #c49a3c; }
   .tc-search-wrap {
     display: flex; align-items: center; gap: 6px;
-    background: #1a1e25; border: 1px solid #252b35; border-radius: 7px; padding: 6px 11px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 6px 11px;
     transition: border-color 0.15s;
   }
-  .tc-search-wrap:focus-within { border-color: #4a9e72; }
+  .tc-search-wrap:focus-within { border-color: var(--accent); }
   .tc-search-wrap input {
-    background: none; border: none; outline: none; font-size: 13px; color: #e8e4dc;
+    background: none; border: none; outline: none; font-size: 13px; color: var(--text);
     font-family: var(--font-body); width: 150px;
   }
-  .tc-search-wrap input::placeholder { color: #4a4a4a; }
+  .tc-search-wrap input::placeholder { color: var(--muted); }
   .tc-zoom-wrap { display: flex; gap: 3px; margin-left: auto; }
   .tc-zoom-btn {
-    width: 32px; height: 32px; background: #1a1e25; border: 1px solid #252b35;
-    border-radius: 6px; color: #8a8880; font-size: 17px; cursor: pointer;
+    width: 32px; height: 32px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-soft); font-size: 17px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.15s; font-family: var(--font-body); line-height: 1;
   }
-  .tc-zoom-btn:hover { border-color: #4a9e72; color: #e8e4dc; }
+  .tc-zoom-btn:hover { border-color: var(--accent); color: var(--text); }
   .tc-canvas-wrap {
-    position: relative; background: #0d0f12; border-radius: var(--radius);
-    overflow: hidden; height: 600px; flex-shrink: 0;
+    position: relative; background: #0d0f12;
+    overflow: hidden; flex: 1; min-height: 0;
     background-image:
       linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
@@ -711,12 +717,11 @@
   .tc-lgnd-line.weak   { background: rgba(255,255,255,0.12); }
   /* Statusbar */
   .tc-statusbar {
-    height: 26px; background: rgba(13,15,18,0.95); border: 1px solid #252b35;
-    border-top: none; border-radius: 0 0 var(--radius) var(--radius);
+    height: 26px; background: var(--bg); border-top: 1px solid var(--border);
     display: flex; align-items: center; padding: 0 14px; gap: 14px;
-    font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: #4a4a4a; flex-shrink: 0;
+    font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: var(--muted); flex-shrink: 0;
   }
-  .tc-statusbar span { color: #4a9e72; }
+  .tc-statusbar span { color: var(--accent); }
   /* SVG node/link styles */
   .tc-link { stroke: rgba(255,255,255,0.06); stroke-width: 1; fill: none; }
   .tc-link-strong { stroke: rgba(74,158,114,0.22); stroke-width: 1.5; }
@@ -1136,75 +1141,75 @@
 
       </div>
 
-      <!-- Tag Cloud page -->
-      <div id="tag-cloud-page">
-        <!-- Controls bar -->
-        <div class="tc-bar">
-          <div class="tc-mode-switch">
-            <button class="tc-mode-btn active" data-mode="network" id="tc-btn-network">
-              <span class="tc-mode-dot network"></span> Graph
-            </button>
-            <button class="tc-mode-btn" data-mode="semantic" id="tc-btn-semantic">
-              <span class="tc-mode-dot semantic"></span> Semantic
-            </button>
+    </main>
+  </div>
+
+  <!-- Tag Cloud page — outside <main> so it fills full viewport width/height -->
+  <div id="tag-cloud-page">
+    <!-- Controls bar -->
+    <div class="tc-bar">
+      <div class="tc-mode-switch">
+        <button class="tc-mode-btn active" data-mode="network" id="tc-btn-network">
+          <span class="tc-mode-dot network"></span> Graph
+        </button>
+        <button class="tc-mode-btn" data-mode="semantic" id="tc-btn-semantic">
+          <span class="tc-mode-dot semantic"></span> Semantic
+        </button>
+      </div>
+      <div class="tc-search-wrap">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.4"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3.5 3.5"/></svg>
+        <input id="tc-search" placeholder="Search nodes…" oninput="tcFilterNodes(this.value)">
+      </div>
+      <div id="tc-semantic-btns" style="display:none">
+        <button class="btn-ghost" id="tc-generate-btn" onclick="generateSemanticMap()" style="font-size:12px;padding:5px 12px">Generate map</button>
+        <button class="btn-ghost" id="tc-regen-btn" onclick="generateSemanticMap()" style="display:none;font-size:12px;padding:5px 12px">Refresh</button>
+      </div>
+      <div class="tc-zoom-wrap">
+        <button class="tc-zoom-btn" onclick="tcZoomBy(1.3)">+</button>
+        <button class="tc-zoom-btn" onclick="tcZoomBy(0.77)">−</button>
+        <button class="tc-zoom-btn" onclick="tcResetZoom()" title="Reset view" style="font-size:11px">⊙</button>
+      </div>
+    </div>
+
+    <!-- Canvas (dark, full graph lives here) -->
+    <div class="tc-canvas-wrap" id="tc-canvas-wrap">
+      <!-- SVG injected by JS -->
+
+      <!-- Detail panel slides in from right -->
+      <div class="tc-detail-panel" id="tc-detail-panel">
+        <div class="tc-detail-header">
+          <div>
+            <div class="tc-detail-type" id="tc-detail-type"></div>
+            <div class="tc-detail-name" id="tc-detail-name"></div>
           </div>
-          <div class="tc-search-wrap">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#4a4a4a" stroke-width="2"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3.5 3.5"/></svg>
-            <input id="tc-search" placeholder="Search nodes…" oninput="tcFilterNodes(this.value)">
-          </div>
-          <div id="tc-semantic-btns" style="display:none">
-            <button class="btn-ghost" id="tc-generate-btn" onclick="generateSemanticMap()" style="font-size:12px;padding:5px 12px">Generate map</button>
-            <button class="btn-ghost" id="tc-regen-btn" onclick="generateSemanticMap()" style="display:none;font-size:12px;padding:5px 12px">Refresh</button>
-          </div>
-          <div class="tc-zoom-wrap">
-            <button class="tc-zoom-btn" onclick="tcZoomBy(1.3)">+</button>
-            <button class="tc-zoom-btn" onclick="tcZoomBy(0.77)">−</button>
-            <button class="tc-zoom-btn" onclick="tcResetZoom()" title="Reset view" style="font-size:11px">⊙</button>
-          </div>
+          <button class="tc-detail-close" onclick="tcCloseDetail()">✕</button>
         </div>
-
-        <!-- Canvas (dark, full graph lives here) -->
-        <div class="tc-canvas-wrap" id="tc-canvas-wrap">
-          <!-- SVG injected by JS -->
-
-          <!-- Detail panel slides in from right -->
-          <div class="tc-detail-panel" id="tc-detail-panel">
-            <div class="tc-detail-header">
-              <div>
-                <div class="tc-detail-type" id="tc-detail-type"></div>
-                <div class="tc-detail-name" id="tc-detail-name"></div>
-              </div>
-              <button class="tc-detail-close" onclick="tcCloseDetail()">✕</button>
-            </div>
-            <div class="tc-detail-body" id="tc-detail-body"></div>
-          </div>
-
-          <!-- Legends -->
-          <div class="tc-legend" id="tc-legend-network">
-            <div class="tc-legend-title">Legend</div>
-            <div class="tc-legend-item"><div class="tc-lgnd-node tag"></div> Topic tag</div>
-            <div class="tc-legend-item"><div class="tc-lgnd-node note"></div> Note</div>
-            <div class="tc-legend-item"><div class="tc-lgnd-line strong"></div> Co-occurs often</div>
-            <div class="tc-legend-item"><div class="tc-lgnd-line weak"></div> Co-occurs rarely</div>
-          </div>
-          <div class="tc-legend" id="tc-legend-semantic" style="display:none">
-            <div class="tc-legend-title">Semantic Map</div>
-            <div class="tc-legend-item"><div class="tc-lgnd-node cluster"></div> Topic cluster</div>
-            <div class="tc-legend-item"><div class="tc-lgnd-node tag"></div> Tag</div>
-            <div class="tc-legend-item"><div class="tc-lgnd-node note"></div> Note</div>
-            <div class="tc-legend-item tc-legend-hint">Proximity = conceptual similarity</div>
-          </div>
-        </div>
-
-        <!-- Status bar -->
-        <div class="tc-statusbar">
-          <span id="tc-stat-nodes">—</span> nodes &nbsp;·&nbsp;
-          <span id="tc-stat-links">—</span> connections &nbsp;·&nbsp;
-          scroll to zoom · drag to pan · click to inspect
-        </div>
+        <div class="tc-detail-body" id="tc-detail-body"></div>
       </div>
 
-    </main>
+      <!-- Legends -->
+      <div class="tc-legend" id="tc-legend-network">
+        <div class="tc-legend-title">Legend</div>
+        <div class="tc-legend-item"><div class="tc-lgnd-node tag"></div> Topic tag</div>
+        <div class="tc-legend-item"><div class="tc-lgnd-node note"></div> Note</div>
+        <div class="tc-legend-item"><div class="tc-lgnd-line strong"></div> Co-occurs often</div>
+        <div class="tc-legend-item"><div class="tc-lgnd-line weak"></div> Co-occurs rarely</div>
+      </div>
+      <div class="tc-legend" id="tc-legend-semantic" style="display:none">
+        <div class="tc-legend-title">Semantic Map</div>
+        <div class="tc-legend-item"><div class="tc-lgnd-node cluster"></div> Topic cluster</div>
+        <div class="tc-legend-item"><div class="tc-lgnd-node tag"></div> Tag</div>
+        <div class="tc-legend-item"><div class="tc-lgnd-node note"></div> Note</div>
+        <div class="tc-legend-item tc-legend-hint">Proximity = conceptual similarity</div>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="tc-statusbar">
+      <span id="tc-stat-nodes">—</span> nodes &nbsp;·&nbsp;
+      <span id="tc-stat-links">—</span> connections &nbsp;·&nbsp;
+      scroll to zoom · drag to pan · click to inspect
+    </div>
   </div>
 </div>
 
@@ -2604,6 +2609,7 @@ function switchView(view) {
   // Hide all non-feed panels first
   settingsEl.classList.remove('active');
   tagCloudEl.classList.remove('active');
+  document.querySelector('main').style.display = ''; // restore if coming from tag-cloud
 
   if (view === 'settings') {
     feedEl.style.display = 'none';
@@ -2617,9 +2623,7 @@ function switchView(view) {
   }
 
   if (view === 'tag-cloud') {
-    feedEl.style.display = 'none';
-    loadMoreEl.style.display = 'none';
-    composerEl.style.display = 'none';
+    document.querySelector('main').style.display = 'none';
     if (searchBar) searchBar.classList.remove('visible');
     tagCloudEl.classList.add('active');
     document.getElementById('header-title').textContent = 'Tag Cloud';
@@ -3824,16 +3828,18 @@ Respond with ONLY this raw JSON (no markdown fences, no explanation):
       const d = await r.json(); text = d.choices?.[0]?.message?.content;
       if (!text) throw new Error('Empty response from OpenAI');
     } else {
+      // Use assistant prefill (start with '{') to guarantee JSON output
       const r = await fetch('https://api.anthropic.com/v1/messages',
         { method:'POST', headers:{'Content-Type':'application/json','x-api-key':aiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-          body:JSON.stringify({model:aiModel(),max_tokens:8192,messages:[{role:'user',content:prompt}]}) });
+          body:JSON.stringify({model:aiModel(),max_tokens:8192,messages:[{role:'user',content:prompt},{role:'assistant',content:'{'}]}) });
       const d = await r.json();
       if (!r.ok) throw new Error(`Claude ${r.status}: ${d?.error?.message||r.statusText}`);
-      text = d.content?.[0]?.text;
-      if (!text) throw new Error(`Unexpected response: ${JSON.stringify(d).slice(0,200)}`);
+      const tail = d.content?.[0]?.text;
+      if (!tail && tail !== '') throw new Error(`Unexpected response: ${JSON.stringify(d).slice(0,200)}`);
+      text = '{' + tail; // prepend the prefilled opening brace
     }
 
-    console.log('[semantic] raw:', text.slice(0,500));
+    console.log('[semantic] raw (first 800):', text.slice(0,800));
     settings._semanticCoords = extractJsonObject(text);
     saveSettingsNow();
     if (regen) regen.style.display = '';
