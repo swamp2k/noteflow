@@ -759,9 +759,10 @@
   .tc-embed-result-score { font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; min-width: 44px; text-align: right; }
   .tc-embed-result-count { font-size: 12px; color: var(--text-soft); min-width: 55px; text-align: right; }
   .tc-embed-graph-btn {
-    flex-shrink: 0; padding: 0 12px; font-size: 16px; border: 1px solid var(--border);
+    flex-shrink: 0; padding: 0 14px; font-size: 18px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text-soft); border-radius: 6px; cursor: pointer;
-    transition: all 0.15s; align-self: stretch; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; align-self: stretch; display: flex; align-items: center;
+    justify-content: center; margin-top: -11px; margin-bottom: -11px; min-width: 44px;
   }
   .tc-embed-graph-btn:hover { border-color: var(--accent); color: var(--accent); }
   /* Ego graph banner */
@@ -1239,7 +1240,7 @@
           <span class="tc-mode-dot embeddings"></span> Embeddings
         </button>
       </div>
-      <div class="tc-search-wrap">
+      <div class="tc-search-wrap" id="tc-search-wrap">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.4"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3.5 3.5"/></svg>
         <input id="tc-search" placeholder="Search nodes…" oninput="tcFilterNodes(this.value)">
       </div>
@@ -1770,8 +1771,9 @@ document.getElementById('tb-heading').addEventListener('change', function() {
 
 // ── HTML → Markdown ───────────────────────────────────────────────────────────
 function htmlToMarkdown(html) {
-  // Ensure bare text before the first <div> gets a newline (contenteditable quirk)
-  html = html.replace(/([^>])(<div)/gi, '$1\n$2');
+  // Ensure content before a <div> gets a newline — but not when it's already </div>
+  // (covers plain text AND inline tags like </s>, </em> before a new line div)
+  html = html.replace(/(?<!<\/div>)<div/gi, '\n<div');
   return html
     .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '# $1\n')
     .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '## $1\n')
@@ -3595,15 +3597,17 @@ document.getElementById('tc-btn-embeddings').addEventListener('click', () => set
 function setTcMode(mode) {
   tcMode = mode;
   document.querySelectorAll('.tc-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  const semBtns  = document.getElementById('tc-semantic-btns');
+  const semBtns    = document.getElementById('tc-semantic-btns');
   const canvasWrap = document.getElementById('tc-canvas-wrap');
   const embedPanel = document.getElementById('tc-embed-panel');
   const statusBar  = document.getElementById('tc-statusbar');
+  const searchWrap = document.getElementById('tc-search-wrap');
   const isEmbed = mode === 'embeddings';
   if (semBtns)    semBtns.style.display    = mode === 'semantic'  ? '' : 'none';
   if (canvasWrap) canvasWrap.style.display  = isEmbed ? 'none' : '';
   if (embedPanel) embedPanel.style.display  = isEmbed ? 'flex' : 'none';
   if (statusBar)  statusBar.style.display   = isEmbed ? 'none' : '';
+  if (searchWrap) searchWrap.style.display  = isEmbed ? 'none' : '';
   document.getElementById('tc-legend-network').style.display  = mode === 'network'  ? '' : 'none';
   document.getElementById('tc-legend-semantic').style.display = mode === 'semantic' ? '' : 'none';
   tcCloseDetail();
