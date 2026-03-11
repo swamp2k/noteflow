@@ -4003,7 +4003,7 @@ async function tcIndexTags() {
       indexBtn.style.display = 'none';
       return;
     }
-    const BATCH = 20; // Gemini batchEmbedContents
+    const BATCH = 100; // Gemini batchEmbedContents supports up to 100 per request
     let done = 0;
     for (let i = 0; i < missing.length; i += BATCH) {
       const batch = missing.slice(i, i + BATCH);
