@@ -568,6 +568,159 @@
     display: none; padding: 8px 0;
   }
   #settings-page.active { display: block; }
+
+  /* ── Tag Cloud / Graph View ──────────────────────────────────────────────── */
+  #tag-cloud-page { display: none; padding: 0; }
+  #tag-cloud-page.active { display: flex; flex-direction: column; gap: 0; }
+  .tc-bar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 0 10px;
+    flex-wrap: wrap; flex-shrink: 0;
+  }
+  .tc-mode-switch {
+    display: flex; background: #1a1e25; border: 1px solid #252b35;
+    border-radius: 8px; padding: 3px; gap: 2px;
+  }
+  .tc-mode-btn {
+    padding: 5px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
+    font-family: var(--font-body); cursor: pointer; border: none;
+    background: transparent; color: #8a8880; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tc-mode-btn.active { background: #0d0f12; color: #e8e4dc; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  .tc-mode-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .tc-mode-dot.network { background: #5b9bd5; }
+  .tc-mode-dot.semantic { background: #c49a3c; }
+  .tc-search-wrap {
+    display: flex; align-items: center; gap: 6px;
+    background: #1a1e25; border: 1px solid #252b35; border-radius: 7px; padding: 6px 11px;
+    transition: border-color 0.15s;
+  }
+  .tc-search-wrap:focus-within { border-color: #4a9e72; }
+  .tc-search-wrap input {
+    background: none; border: none; outline: none; font-size: 13px; color: #e8e4dc;
+    font-family: var(--font-body); width: 150px;
+  }
+  .tc-search-wrap input::placeholder { color: #4a4a4a; }
+  .tc-zoom-wrap { display: flex; gap: 3px; margin-left: auto; }
+  .tc-zoom-btn {
+    width: 32px; height: 32px; background: #1a1e25; border: 1px solid #252b35;
+    border-radius: 6px; color: #8a8880; font-size: 17px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; font-family: var(--font-body); line-height: 1;
+  }
+  .tc-zoom-btn:hover { border-color: #4a9e72; color: #e8e4dc; }
+  .tc-canvas-wrap {
+    position: relative; background: #0d0f12; border-radius: var(--radius);
+    overflow: hidden; height: 600px; flex-shrink: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .tc-canvas-wrap svg { display: block; cursor: grab; }
+  .tc-canvas-wrap svg:active { cursor: grabbing; }
+  .tc-loader-msg {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; color: #4a4a4a; font-size: 14px; white-space: pre-line;
+    text-align: center; padding: 20px;
+  }
+  /* Detail panel */
+  .tc-detail-panel {
+    position: absolute; top: 12px; right: 12px; width: 290px;
+    background: #13161b; border: 1px solid #252b35; border-radius: 12px;
+    max-height: calc(100% - 24px); overflow-y: auto; z-index: 10;
+    transform: translateX(320px); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .tc-detail-panel.open { transform: translateX(0); }
+  .tc-detail-header {
+    padding: 14px 16px 12px; border-bottom: 1px solid #252b35;
+    position: sticky; top: 0; background: #13161b; border-radius: 12px 12px 0 0;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  }
+  .tc-detail-type {
+    font-size: 10px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 4px; color: #4a4a4a;
+  }
+  .tc-detail-type.tag { color: #5b9bd5; }
+  .tc-detail-type.note { color: #9b7fd4; }
+  .tc-detail-name {
+    font-size: 16px; font-weight: 400; color: #e8e4dc; line-height: 1.3;
+  }
+  .tc-detail-close {
+    background: none; border: none; color: #4a4a4a; cursor: pointer;
+    font-size: 15px; padding: 2px; flex-shrink: 0; transition: color 0.15s;
+  }
+  .tc-detail-close:hover { color: #e8e4dc; }
+  .tc-detail-body { padding: 12px 16px; }
+  .tc-dp-stat {
+    display: flex; justify-content: space-between; font-size: 12px;
+    padding: 5px 0; border-bottom: 1px solid #1a1e25; color: #8a8880;
+  }
+  .tc-dp-stat:last-of-type { border: none; margin-bottom: 10px; }
+  .tc-dp-stat span:last-child { font-family: 'IBM Plex Mono', monospace; color: #4a9e72; }
+  .tc-dp-section {
+    font-size: 10px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 1px; color: #4a4a4a; margin: 12px 0 7px;
+  }
+  .tc-dp-note {
+    background: #1a1e25; border: 1px solid #252b35; border-radius: 8px;
+    padding: 9px 11px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .tc-dp-note:hover { border-color: #4a9e72; }
+  .tc-dp-note-text {
+    font-size: 12px; color: #e8e4dc; line-height: 1.5; margin-bottom: 5px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .tc-dp-note-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 4px; }
+  .tc-dp-mini-tag {
+    font-size: 10px; background: rgba(91,155,213,0.12); color: #5b9bd5;
+    padding: 1px 6px; border-radius: 10px;
+  }
+  .tc-dp-note-time { font-size: 10px; color: #4a4a4a; font-family: 'IBM Plex Mono', monospace; }
+  .tc-dp-tag {
+    display: inline-flex; align-items: center; background: rgba(91,155,213,0.1);
+    border: 1px solid rgba(91,155,213,0.2); color: #5b9bd5; font-size: 12px;
+    padding: 3px 9px; border-radius: 20px; margin: 0 3px 3px 0;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .tc-dp-tag:hover { background: rgba(91,155,213,0.22); }
+  .tc-dp-open-btn {
+    background: none; border: 1px solid #252b35; border-radius: 6px;
+    color: #8a8880; font-size: 12px; padding: 5px 12px; cursor: pointer;
+    font-family: var(--font-body); transition: all 0.15s;
+  }
+  .tc-dp-open-btn:hover { border-color: #4a9e72; color: #e8e4dc; }
+  /* Legend */
+  .tc-legend {
+    position: absolute; bottom: 14px; left: 14px;
+    background: rgba(19,22,27,0.92); border: 1px solid #252b35; border-radius: 9px;
+    padding: 11px 15px; display: flex; flex-direction: column; gap: 7px; z-index: 5;
+  }
+  .tc-legend-title {
+    font-size: 10px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 1px; color: #4a4a4a; margin-bottom: 1px;
+  }
+  .tc-legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #8a8880; }
+  .tc-legend-hint { font-size: 10px; color: #4a4a4a; max-width: 130px; line-height: 1.4; }
+  .tc-lgnd-node { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+  .tc-lgnd-node.tag     { background: #5b9bd5; box-shadow: 0 0 5px rgba(91,155,213,0.5); }
+  .tc-lgnd-node.note    { background: #9b7fd4; box-shadow: 0 0 4px rgba(155,127,212,0.4); }
+  .tc-lgnd-node.cluster { background: #c49a3c; box-shadow: 0 0 5px rgba(196,154,60,0.4); }
+  .tc-lgnd-line { width: 22px; height: 1px; flex-shrink: 0; }
+  .tc-lgnd-line.strong { background: rgba(74,158,114,0.6); }
+  .tc-lgnd-line.weak   { background: rgba(255,255,255,0.12); }
+  /* Statusbar */
+  .tc-statusbar {
+    height: 26px; background: rgba(13,15,18,0.95); border: 1px solid #252b35;
+    border-top: none; border-radius: 0 0 var(--radius) var(--radius);
+    display: flex; align-items: center; padding: 0 14px; gap: 14px;
+    font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: #4a4a4a; flex-shrink: 0;
+  }
+  .tc-statusbar span { color: #4a9e72; }
+  /* SVG node/link styles */
+  .tc-link { stroke: rgba(255,255,255,0.06); stroke-width: 1; fill: none; }
+  .tc-link-strong { stroke: rgba(74,158,114,0.22); stroke-width: 1.5; }
+  .tc-link-highlighted { stroke: #4a9e72 !important; stroke-opacity: 0.6 !important; stroke-width: 2 !important; }
   .settings-section {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); box-shadow: var(--shadow);
@@ -695,6 +848,10 @@
       <button class="nav-item" data-view="attachments">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         Attachments
+      </button>
+      <button class="nav-item" data-view="tag-cloud">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/><line x1="7" y1="11.2" x2="11" y2="12"/><line x1="13" y1="12" x2="17.2" y2="6.5"/><line x1="13" y1="12" x2="17.2" y2="17.5"/></svg>
+        Tag Cloud
       </button>
       <div class="nav-spacer"></div>
       <div style="border-top:1px solid var(--border);margin:0 0 4px"></div>
@@ -978,6 +1135,75 @@
 
 
       </div>
+
+      <!-- Tag Cloud page -->
+      <div id="tag-cloud-page">
+        <!-- Controls bar -->
+        <div class="tc-bar">
+          <div class="tc-mode-switch">
+            <button class="tc-mode-btn active" data-mode="network" id="tc-btn-network">
+              <span class="tc-mode-dot network"></span> Graph
+            </button>
+            <button class="tc-mode-btn" data-mode="semantic" id="tc-btn-semantic">
+              <span class="tc-mode-dot semantic"></span> Semantic
+            </button>
+          </div>
+          <div class="tc-search-wrap">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#4a4a4a" stroke-width="2"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3.5 3.5"/></svg>
+            <input id="tc-search" placeholder="Search nodes…" oninput="tcFilterNodes(this.value)">
+          </div>
+          <div id="tc-semantic-btns" style="display:none">
+            <button class="btn-ghost" id="tc-generate-btn" onclick="generateSemanticMap()" style="font-size:12px;padding:5px 12px">Generate map</button>
+            <button class="btn-ghost" id="tc-regen-btn" onclick="generateSemanticMap()" style="display:none;font-size:12px;padding:5px 12px">Refresh</button>
+          </div>
+          <div class="tc-zoom-wrap">
+            <button class="tc-zoom-btn" onclick="tcZoomBy(1.3)">+</button>
+            <button class="tc-zoom-btn" onclick="tcZoomBy(0.77)">−</button>
+            <button class="tc-zoom-btn" onclick="tcResetZoom()" title="Reset view" style="font-size:11px">⊙</button>
+          </div>
+        </div>
+
+        <!-- Canvas (dark, full graph lives here) -->
+        <div class="tc-canvas-wrap" id="tc-canvas-wrap">
+          <!-- SVG injected by JS -->
+
+          <!-- Detail panel slides in from right -->
+          <div class="tc-detail-panel" id="tc-detail-panel">
+            <div class="tc-detail-header">
+              <div>
+                <div class="tc-detail-type" id="tc-detail-type"></div>
+                <div class="tc-detail-name" id="tc-detail-name"></div>
+              </div>
+              <button class="tc-detail-close" onclick="tcCloseDetail()">✕</button>
+            </div>
+            <div class="tc-detail-body" id="tc-detail-body"></div>
+          </div>
+
+          <!-- Legends -->
+          <div class="tc-legend" id="tc-legend-network">
+            <div class="tc-legend-title">Legend</div>
+            <div class="tc-legend-item"><div class="tc-lgnd-node tag"></div> Topic tag</div>
+            <div class="tc-legend-item"><div class="tc-lgnd-node note"></div> Note</div>
+            <div class="tc-legend-item"><div class="tc-lgnd-line strong"></div> Co-occurs often</div>
+            <div class="tc-legend-item"><div class="tc-lgnd-line weak"></div> Co-occurs rarely</div>
+          </div>
+          <div class="tc-legend" id="tc-legend-semantic" style="display:none">
+            <div class="tc-legend-title">Semantic Map</div>
+            <div class="tc-legend-item"><div class="tc-lgnd-node cluster"></div> Topic cluster</div>
+            <div class="tc-legend-item"><div class="tc-lgnd-node tag"></div> Tag</div>
+            <div class="tc-legend-item"><div class="tc-lgnd-node note"></div> Note</div>
+            <div class="tc-legend-item tc-legend-hint">Proximity = conceptual similarity</div>
+          </div>
+        </div>
+
+        <!-- Status bar -->
+        <div class="tc-statusbar">
+          <span id="tc-stat-nodes">—</span> nodes &nbsp;·&nbsp;
+          <span id="tc-stat-links">—</span> connections &nbsp;·&nbsp;
+          scroll to zoom · drag to pan · click to inspect
+        </div>
+      </div>
+
     </main>
   </div>
 </div>
@@ -1060,6 +1286,7 @@ let settings = {
   aiProvider: 'claude',
   aiApiKey:   '',
   aiModel:    '',
+  _semanticCoords: null,
 };
 
 let _saveSettingsTimer = null;
@@ -1074,6 +1301,14 @@ function saveSettings() {
       });
     } catch(e) { console.warn('Settings save failed:', e.message); }
   }, 800);
+}
+function saveSettingsNow() {
+  clearTimeout(_saveSettingsTimer);
+  return fetch(API_BASE + '/user/settings', {
+    method: 'PUT', credentials: 'omit',
+    headers: authHeaders(),
+    body: JSON.stringify(settings)
+  }).catch(e => console.warn('Settings save failed:', e.message));
 }
 
 async function loadSettings() {
@@ -1203,6 +1438,17 @@ Return 3-6 specific tags as a JSON array only. Example: ["opskrift","pasta","aft
 function parseTagsJson(text) {
   try { return JSON.parse(text.replace(/```json|```/g, '').trim()); }
   catch { return []; }
+}
+
+// Extract first valid JSON object from a possibly-decorated AI response
+function extractJsonObject(text) {
+  const stripped = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  const start = stripped.indexOf('{'), end = stripped.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    try { return JSON.parse(stripped.slice(start, end + 1)); } catch {}
+  }
+  throw new Error('Could not parse JSON from AI response');
 }
 
 async function claudeVision(base64, mediaType) {
@@ -1648,7 +1894,7 @@ async function fetchAllMemos() {
 
 // ── Render feed ───────────────────────────────────────────────────────────────
 function getViewTitle(view) {
-  return { all:'All notes', starred:'Starred', hidden:'Hidden', archived:'Archive', shared:'Shared', attachments:'Attachments' }[view] || 'Notes';
+  return { all:'All notes', starred:'Starred', hidden:'Hidden', archived:'Archive', shared:'Shared', attachments:'Attachments', 'tag-cloud':'Tag Cloud' }[view] || 'Notes';
 }
 
 // ── Archive / Delete ──────────────────────────────────────────────────────────
@@ -2348,12 +2594,17 @@ function switchView(view) {
   const item = document.querySelector('.nav-item[data-view="' + view + '"]');
   if (item) item.classList.add('active');
 
-  const feedEl = document.getElementById('feed');
+  const feedEl     = document.getElementById('feed');
   const settingsEl = document.getElementById('settings-page');
+  const tagCloudEl = document.getElementById('tag-cloud-page');
   const composerEl = document.getElementById('composer');
   const loadMoreEl = document.getElementById('load-more');
+  const searchBar  = document.getElementById('search-bar');
 
-  const searchBar = document.getElementById('search-bar');
+  // Hide all non-feed panels first
+  settingsEl.classList.remove('active');
+  tagCloudEl.classList.remove('active');
+
   if (view === 'settings') {
     feedEl.style.display = 'none';
     loadMoreEl.style.display = 'none';
@@ -2364,17 +2615,29 @@ function switchView(view) {
     currentView = 'settings';
     return;
   }
-  if (searchBar) searchBar.classList.add('visible');
 
-  settingsEl.classList.remove('active');
+  if (view === 'tag-cloud') {
+    feedEl.style.display = 'none';
+    loadMoreEl.style.display = 'none';
+    composerEl.style.display = 'none';
+    if (searchBar) searchBar.classList.remove('visible');
+    tagCloudEl.classList.add('active');
+    document.getElementById('header-title').textContent = 'Tag Cloud';
+    currentView = 'tag-cloud';
+    loadTagCloud();
+    return;
+  }
+  // Stop force simulation when leaving tag cloud
+  if (typeof tcSimulation !== 'undefined' && tcSimulation) { tcSimulation.stop(); }
+
+  if (searchBar) searchBar.classList.add('visible');
   feedEl.style.display = '';
   currentView = view;
   document.getElementById('header-title').textContent = getViewTitle(view);
   allMemos = [];
   nextCursor = null;
   if (view === 'attachments') {
-    // Fetch all pages so we don't miss older attachments
-    renderFeed(); // show loading state immediately
+    renderFeed();
     fetchAllMemos().then(all => {
       allMemos = all;
       renderFeed();
@@ -3161,6 +3424,429 @@ document.getElementById('content').classList.toggle('sidebar-visible', sidebarMQ
       '<div class="sv-error">Note not found or no longer public.</div>';
   }
 })();
+
+// ── Tag Cloud / Graph View ────────────────────────────────────────────────────
+let tagGraphData  = null;
+let tcMode        = 'network';
+let tcSimulation  = null;
+let tcSvg         = null;
+let tcZoomBeh     = null;
+let tcGMain       = null;
+let tcNotesCache  = null;
+
+document.getElementById('tc-btn-network').addEventListener('click',  () => setTcMode('network'));
+document.getElementById('tc-btn-semantic').addEventListener('click', () => setTcMode('semantic'));
+
+function setTcMode(mode) {
+  tcMode = mode;
+  document.querySelectorAll('.tc-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  const semBtns = document.getElementById('tc-semantic-btns');
+  if (semBtns) semBtns.style.display = mode === 'semantic' ? '' : 'none';
+  document.getElementById('tc-legend-network').style.display  = mode === 'network'  ? '' : 'none';
+  document.getElementById('tc-legend-semantic').style.display = mode === 'semantic' ? '' : 'none';
+  tcCloseDetail();
+  if (tagGraphData) {
+    if (mode === 'network') buildForceGraph();
+    else buildSemanticGraph();
+  }
+}
+
+function loadD3() {
+  return new Promise((resolve, reject) => {
+    if (window.d3) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Could not load D3 — check internet connection'));
+    document.head.appendChild(s);
+  });
+}
+
+async function loadTagCloud() {
+  if (tcSimulation) { tcSimulation.stop(); tcSimulation = null; }
+  if (!tagGraphData) {
+    tcShowLoading('Loading…');
+    try {
+      [tagGraphData, tcNotesCache] = await Promise.all([
+        apiGet('/tags/graph'),
+        apiGet('/notes?pageSize=150').then(d => d.notes || []).catch(() => [])
+      ]);
+    } catch(e) { tcShowLoading('Failed to load graph data'); return; }
+  }
+  try { await loadD3(); } catch(e) { tcShowLoading(e.message); return; }
+  tcInitSvg();
+  if (tcMode === 'network') buildForceGraph();
+  else buildSemanticGraph();
+}
+
+function tcShowLoading(msg) {
+  const wrap = document.getElementById('tc-canvas-wrap');
+  wrap.querySelectorAll('svg').forEach(el => el.remove());
+  let el = wrap.querySelector('.tc-loader-msg');
+  if (!el) { el = document.createElement('div'); el.className = 'tc-loader-msg'; wrap.appendChild(el); }
+  el.textContent = msg;
+}
+
+function tcInitSvg() {
+  const wrap = document.getElementById('tc-canvas-wrap');
+  wrap.querySelectorAll('svg').forEach(el => el.remove());
+  wrap.querySelectorAll('.tc-loader-msg').forEach(el => el.remove());
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+
+  tcSvg = d3.select(wrap).append('svg').attr('width', W).attr('height', H);
+  tcZoomBeh = d3.zoom().scaleExtent([0.1, 6]).on('zoom', e => tcGMain.attr('transform', e.transform));
+  tcSvg.call(tcZoomBeh).on('dblclick.zoom', null);
+  tcSvg.on('click', () => { tcCloseDetail(); tcDeselectAll(); });
+  tcSvg.on('dblclick', () => tcResetZoom());
+
+  tcGMain = tcSvg.append('g').attr('class', 'tc-main-g');
+
+  const defs = tcSvg.append('defs');
+  const mkGlow = (id, color, std) => {
+    const f = defs.append('filter').attr('id', id).attr('x','-60%').attr('y','-60%').attr('width','220%').attr('height','220%');
+    f.append('feGaussianBlur').attr('in','SourceGraphic').attr('stdDeviation', std).attr('result','blur');
+    f.append('feFlood').attr('flood-color', color).attr('flood-opacity','0.55').attr('result','color');
+    f.append('feComposite').attr('in','color').attr('in2','blur').attr('operator','in').attr('result','shadow');
+    const m = f.append('feMerge');
+    m.append('feMergeNode').attr('in','shadow');
+    m.append('feMergeNode').attr('in','SourceGraphic');
+  };
+  mkGlow('tc-glow-tag',     '#5b9bd5', 5);
+  mkGlow('tc-glow-note',    '#9b7fd4', 3);
+  mkGlow('tc-glow-cluster', '#c49a3c', 6);
+  mkGlow('tc-glow-sel',     '#4a9e72', 7);
+  return { W, H };
+}
+
+// ── Force graph ───────────────────────────────────────────────────────────────
+function buildForceGraph() {
+  if (!tcSvg) return;
+  tcGMain.selectAll('*').remove();
+  const wrap = document.getElementById('tc-canvas-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+
+  const rawTags = (tagGraphData.tags || []).filter(t => !SPECIAL_TAGS.includes(t.tag));
+  const maxCount = Math.max(...rawTags.map(t => t.count), 1);
+  const nodeR = d => d.type === 'tag' ? Math.max(7, Math.sqrt(d.count / maxCount) * 28 + 7) : 5;
+
+  const tagNodes = rawTags.map(t => ({ id:'tag-'+t.tag, type:'tag', label:t.tag, count:t.count }));
+  const noteNodes = (tcNotesCache || []).slice(0, 200).map(n => ({ id:'note-'+n.id, type:'note', note:n }));
+  const nodes = [...tagNodes, ...noteNodes];
+  const nodeIds = new Set(nodes.map(n => n.id));
+
+  const noteLinks = noteNodes.flatMap(n =>
+    (n.note.tags || []).filter(t => nodeIds.has('tag-'+t)).map(t => ({ source:'tag-'+t, target:n.id, strength:'weak' }))
+  );
+  const tagLinks = (tagGraphData.edges || [])
+    .filter(e => nodeIds.has('tag-'+e.source) && nodeIds.has('tag-'+e.target))
+    .map(e => ({ source:'tag-'+e.source, target:'tag-'+e.target, strength: e.weight > 3 ? 'strong' : 'weak', weight: e.weight }));
+  const links = [...tagLinks, ...noteLinks];
+
+  const linkSel = tcGMain.append('g').selectAll('line').data(links).join('line')
+    .attr('class', d => 'tc-link' + (d.strength === 'strong' ? ' tc-link-strong' : ''));
+
+  const nodeSel = tcGMain.append('g').selectAll('g').data(nodes).join('g')
+    .attr('class', d => 'tc-node-' + d.type)
+    .style('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', (e,d) => { if (!e.active && tcSimulation) tcSimulation.alphaTarget(0.2).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+      .on('end',   (e,d) => { if (!e.active && tcSimulation) tcSimulation.alphaTarget(0); d.fx=null; d.fy=null; })
+    )
+    .on('click', (ev, d) => { ev.stopPropagation(); tcSelectNode(d, nodeSel, linkSel); });
+
+  nodeSel.append('circle')
+    .attr('r', nodeR)
+    .attr('fill', d => d.type === 'tag' ? '#5b9bd5' : '#9b7fd4')
+    .attr('opacity', d => d.type === 'tag' ? 0.9 : 0.65)
+    .attr('filter', d => d.type === 'tag' ? 'url(#tc-glow-tag)' : 'url(#tc-glow-note)');
+
+  nodeSel.filter(d => d.type === 'tag').append('circle')
+    .attr('r', d => nodeR(d) + 4).attr('fill','none')
+    .attr('stroke','#5b9bd5').attr('stroke-width',0.5).attr('opacity',0.2);
+
+  nodeSel.filter(d => d.type === 'tag').append('text')
+    .attr('dy', d => nodeR(d) + 13).attr('text-anchor','middle')
+    .attr('font-size', d => Math.max(10, 9 + d.count * 0.35))
+    .attr('fill','#8a8880').attr('font-family',"'IBM Plex Mono', monospace")
+    .attr('pointer-events','none').style('user-select','none')
+    .text(d => '#' + d.label);
+
+  if (tcSimulation) tcSimulation.stop();
+  tcSimulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d=>d.id)
+      .distance(d => d.source.type==='tag'&&d.target.type==='tag' ? 120 : 55)
+      .strength(d => d.strength==='strong' ? 0.5 : 0.15))
+    .force('charge', d3.forceManyBody().strength(d => d.type==='tag' ? -350 : -60))
+    .force('center', d3.forceCenter(W/2, H/2).strength(0.05))
+    .force('collide', d3.forceCollide(d => nodeR(d) + 5).strength(0.7))
+    .on('tick', () => {
+      linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+      nodeSel.attr('transform', d=>`translate(${d.x},${d.y})`);
+    });
+
+  document.getElementById('tc-stat-nodes').textContent = nodes.length;
+  document.getElementById('tc-stat-links').textContent = links.length;
+}
+
+// ── Semantic graph ────────────────────────────────────────────────────────────
+function buildSemanticGraph() {
+  if (!tcSvg) return;
+  tcGMain.selectAll('*').remove();
+  if (tcSimulation) { tcSimulation.stop(); tcSimulation = null; }
+
+  const coords = settings._semanticCoords;
+  if (!coords) {
+    tcShowLoading('Click "Generate map" to build the semantic view');
+    document.getElementById('tc-semantic-btns').style.display = '';
+    return;
+  }
+
+  const wrap = document.getElementById('tc-canvas-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const PAD = 90;
+
+  const rawTags = (tagGraphData.tags || []).filter(t => !SPECIAL_TAGS.includes(t.tag));
+  const tagMap = Object.fromEntries(rawTags.map(t => [t.tag, t]));
+  const maxCount = Math.max(...rawTags.map(t => t.count), 1);
+
+  const coordMap = coords.coords || coords; // support both {coords:{}, clusters:[]} and plain {}
+  const entries = Object.entries(coordMap).filter(([t]) => !SPECIAL_TAGS.includes(t) && tagMap[t]);
+  if (!entries.length) { tcShowLoading('No tag coordinates — try regenerating'); return; }
+
+  const xs = entries.map(([,v]) => v[0]), ys = entries.map(([,v]) => v[1]);
+  const x0 = Math.min(...xs), xR = (Math.max(...xs)-x0)||1;
+  const y0 = Math.min(...ys), yR = (Math.max(...ys)-y0)||1;
+  const toX = x => PAD + (x-x0)/xR*(W-2*PAD);
+  const toY = y => PAD + (y-y0)/yR*(H-2*PAD);
+
+  const tagPosMap = Object.fromEntries(entries.map(([t,[x,y]]) => [t, {x:toX(x), y:toY(y)}]));
+
+  // Cluster halos
+  const clusters = coords.clusters || [];
+  if (clusters.length) {
+    const cg = tcGMain.append('g');
+    for (const c of clusters) {
+      const cx = toX(c.cx), cy = toY(c.cy);
+      cg.append('circle').attr('cx',cx).attr('cy',cy).attr('r',85).attr('fill','rgba(196,154,60,0.04)').attr('stroke','rgba(196,154,60,0.08)').attr('stroke-width',1);
+      cg.append('circle').attr('cx',cx).attr('cy',cy).attr('r',42).attr('fill','rgba(196,154,60,0.06)').attr('stroke','none');
+      cg.append('text').attr('x',cx).attr('y',cy-60).attr('text-anchor','middle')
+        .attr('font-size',13).attr('fill','rgba(196,154,60,0.55)').attr('pointer-events','none')
+        .style('font-style','italic').text(c.label);
+    }
+  }
+
+  // Scatter notes near their tag positions
+  let seed = 7; const rng = () => { seed=(seed*1664525+1013904223)&0xffffffff; return (seed>>>0)/0xffffffff; };
+  const notePosData = (tcNotesCache||[])
+    .filter(n => (n.tags||[]).some(t => tagPosMap[t]))
+    .map(n => {
+      const pts = (n.tags||[]).filter(t=>tagPosMap[t]).map(t=>tagPosMap[t]);
+      const cx = pts.reduce((s,p)=>s+p.x,0)/pts.length;
+      const cy = pts.reduce((s,p)=>s+p.y,0)/pts.length;
+      return { note:n, x: cx+Math.cos(rng()*Math.PI*2)*(15+rng()*35), y: cy+Math.sin(rng()*Math.PI*2)*(15+rng()*35) };
+    });
+
+  if (notePosData.length) {
+    const ng = tcGMain.append('g');
+    ng.selectAll('g').data(notePosData).join('g')
+      .attr('transform', d=>`translate(${d.x},${d.y})`)
+      .style('cursor','pointer')
+      .on('click',(ev,d)=>{ ev.stopPropagation(); tcShowDetail({type:'note',id:'note-'+d.note.id,note:d.note,r:5}); })
+      .append('circle').attr('r',5).attr('fill','#9b7fd4').attr('opacity',0.65).attr('filter','url(#tc-glow-note)');
+  }
+
+  // Tag nodes
+  const tagData = entries.map(([t,[x,y]])=>({ id:'tag-'+t, type:'tag', label:t, count:tagMap[t].count, r:Math.max(7,Math.sqrt(tagMap[t].count/maxCount)*26+7), x:toX(x), y:toY(y) }));
+  const tagSel = tcGMain.append('g').selectAll('g').data(tagData).join('g')
+    .attr('class','tc-node-tag').attr('transform',d=>`translate(${d.x},${d.y})`).style('cursor','pointer')
+    .on('click',(ev,d)=>{ ev.stopPropagation(); tcShowDetail(d); });
+
+  tagSel.append('circle').attr('r',d=>d.r).attr('fill','#5b9bd5').attr('opacity',0.9).attr('filter','url(#tc-glow-tag)');
+  tagSel.append('circle').attr('r',d=>d.r+4).attr('fill','none').attr('stroke','#5b9bd5').attr('stroke-width',0.5).attr('opacity',0.2);
+  tagSel.append('text').attr('dy',d=>d.r+13).attr('text-anchor','middle')
+    .attr('font-size',11).attr('fill','#8a8880').attr('font-family',"'IBM Plex Mono', monospace")
+    .attr('pointer-events','none').style('user-select','none').text(d=>'#'+d.label);
+
+  document.getElementById('tc-stat-nodes').textContent = tagData.length + notePosData.length;
+  document.getElementById('tc-stat-links').textContent = '—';
+  if (document.getElementById('tc-regen-btn')) document.getElementById('tc-regen-btn').style.display = '';
+}
+
+// ── Selection ─────────────────────────────────────────────────────────────────
+function tcSelectNode(d, nodeSel, linkSel) {
+  // Dim all
+  tcGMain.selectAll('.tc-node-tag circle, .tc-node-note circle').attr('opacity', 0.1);
+  tcGMain.selectAll('text').attr('opacity', 0.12);
+  // Highlight selected
+  nodeSel.filter(nd => nd.id === d.id).select('circle')
+    .attr('opacity',1).attr('stroke','#4a9e72').attr('stroke-width',2).attr('filter','url(#tc-glow-sel)');
+  nodeSel.filter(nd => nd.id === d.id).selectAll('text').attr('opacity',1);
+  // Highlight links and neighbors
+  linkSel.each(function(ld) {
+    const src = ld.source.id||ld.source, tgt = ld.target.id||ld.target;
+    if (src===d.id||tgt===d.id) {
+      d3.select(this).classed('tc-link-highlighted',true);
+      const nbId = src===d.id ? tgt : src;
+      nodeSel.filter(nd=>nd.id===nbId).select('circle').attr('opacity',0.85).attr('filter','url(#tc-glow-note)');
+      nodeSel.filter(nd=>nd.id===nbId).selectAll('text').attr('opacity',0.7);
+    } else {
+      d3.select(this).attr('stroke-opacity',0.02);
+    }
+  });
+  tcShowDetail(d);
+}
+
+function tcDeselectAll() {
+  if (!tcGMain) return;
+  tcGMain.selectAll('.tc-node-tag circle').attr('opacity',0.9).attr('stroke',null).attr('stroke-width',null).attr('filter','url(#tc-glow-tag)');
+  tcGMain.selectAll('.tc-node-note circle').attr('opacity',0.65).attr('stroke',null).attr('stroke-width',null).attr('filter','url(#tc-glow-note)');
+  tcGMain.selectAll('text').attr('opacity',1);
+  tcGMain.selectAll('.tc-link').classed('tc-link-highlighted',false).attr('stroke-opacity',null);
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+async function tcShowDetail(d) {
+  const panel = document.getElementById('tc-detail-panel');
+  const typeEl = document.getElementById('tc-detail-type');
+  const nameEl = document.getElementById('tc-detail-name');
+  const bodyEl = document.getElementById('tc-detail-body');
+  panel.classList.add('open');
+
+  if (d.type === 'tag') {
+    typeEl.className = 'tc-detail-type tag'; typeEl.textContent = 'Tag';
+    nameEl.textContent = '#' + d.label;
+    bodyEl.innerHTML = '<div style="color:#4a4a4a;font-size:12px;padding:8px 0">Loading…</div>';
+    try {
+      const data = await apiGet(`/notes?tag=${encodeURIComponent(d.label)}&pageSize=50`);
+      const notes = data.notes || [];
+      const related = [...new Set(notes.flatMap(n=>n.tags||[]))].filter(t=>t!==d.label&&!SPECIAL_TAGS.includes(t));
+      bodyEl.innerHTML = `
+        <div class="tc-dp-stat"><span>Notes tagged</span><span>${notes.length}</span></div>
+        <div class="tc-dp-stat"><span>Related tags</span><span>${related.length}</span></div>
+        ${related.length ? `<div class="tc-dp-section">Connected tags</div><div style="margin-bottom:12px">${related.slice(0,14).map(t=>`<span class="tc-dp-tag" onclick="tcFocusTag('${t}')">#${t}</span>`).join('')}</div>` : ''}
+        <div class="tc-dp-section">Notes</div>
+        ${notes.map(n=>`<div class="tc-dp-note" onclick="tcOpenNote('${n.id}','${d.label}')">
+          <div class="tc-dp-note-text">${(n.content||'').replace(/<[^>]+>/g,'').slice(0,120)}</div>
+          <div class="tc-dp-note-tags">${(n.tags||[]).filter(t=>!SPECIAL_TAGS.includes(t)).map(t=>`<span class="tc-dp-mini-tag">#${t}</span>`).join('')}</div>
+          <div class="tc-dp-note-time">${new Date(n.created_at).toLocaleDateString()}</div>
+        </div>`).join('')}`;
+    } catch(e) { bodyEl.innerHTML = '<div style="color:#4a4a4a;font-size:12px">Failed to load</div>'; }
+  } else {
+    const n = d.note;
+    const preview = (n.content||'').replace(/<[^>]+>/g,'');
+    typeEl.className = 'tc-detail-type note'; typeEl.textContent = 'Note';
+    nameEl.textContent = preview.slice(0,55)+(preview.length>55?'…':'');
+    const visibleTags = (n.tags||[]).filter(t=>!SPECIAL_TAGS.includes(t));
+    bodyEl.innerHTML = `
+      <div class="tc-dp-stat"><span>Date</span><span>${new Date(n.created_at).toLocaleDateString()}</span></div>
+      <div class="tc-dp-stat"><span>Tags</span><span>${visibleTags.length}</span></div>
+      <div style="background:rgba(255,255,255,0.04);border:1px solid #1a1e25;border-radius:8px;padding:11px;margin:10px 0;font-size:12px;line-height:1.6;color:rgba(232,228,220,0.9)">${preview.slice(0,400)}${preview.length>400?'…':''}</div>
+      <div style="margin-bottom:10px">${visibleTags.map(t=>`<span class="tc-dp-tag" onclick="tcFocusTag('${t}')">#${t}</span>`).join('')}</div>
+      <button class="tc-dp-open-btn" onclick="tcOpenNote('${n.id}','')">Open note →</button>`;
+  }
+}
+
+function tcCloseDetail() {
+  document.getElementById('tc-detail-panel').classList.remove('open');
+  tcDeselectAll();
+}
+
+function tcFocusTag(tag) {
+  if (!tcGMain) return;
+  tcGMain.selectAll('.tc-node-tag').each(function(d) {
+    if (d && d.label === tag) tcShowDetail(d);
+  });
+}
+
+function tcOpenNote(noteId, tag) {
+  if (tag) { searchQuery = tag; const si = document.getElementById('search-input'); if (si) { si.value = tag; document.getElementById('search-clear')?.classList.add('visible'); } }
+  switchView('all');
+}
+
+function tcFilterNodes(q) {
+  if (!tcGMain) return;
+  if (!q) { tcDeselectAll(); return; }
+  q = q.toLowerCase();
+  tcGMain.selectAll('.tc-node-tag').each(function(d) {
+    if (!d) return;
+    const m = d.label.toLowerCase().includes(q);
+    d3.select(this).select('circle').attr('opacity', m ? 1 : 0.06);
+    d3.select(this).selectAll('text').attr('opacity', m ? 1 : 0.06);
+  });
+  tcGMain.selectAll('.tc-node-note').each(function(d) {
+    if (!d||!d.note) return;
+    const m = (d.note.content||'').toLowerCase().includes(q)||(d.note.tags||[]).join(' ').includes(q);
+    d3.select(this).select('circle').attr('opacity', m ? 0.9 : 0.04);
+  });
+}
+
+function tcZoomBy(factor) { if (tcSvg&&tcZoomBeh) tcSvg.transition().duration(300).call(tcZoomBeh.scaleBy, factor); }
+function tcResetZoom()    { if (tcSvg&&tcZoomBeh) tcSvg.transition().duration(400).call(tcZoomBeh.transform, d3.zoomIdentity); }
+
+// ── Semantic map generation ───────────────────────────────────────────────────
+async function generateSemanticMap() {
+  if (!aiKey()) { toast('Set an AI API key in Settings → AI first'); return; }
+  const btn = document.getElementById('tc-generate-btn');
+  const regen = document.getElementById('tc-regen-btn');
+  [btn, regen].forEach(b => { if(b){b.disabled=true; b.textContent='Generating…';} });
+  tcShowLoading('Asking AI to map your tags…');
+
+  try {
+    if (!tagGraphData) tagGraphData = await apiGet('/tags/graph');
+    const tagList = (tagGraphData.tags||[]).filter(t=>!SPECIAL_TAGS.includes(t.tag)).map(t=>t.tag);
+    if (tagList.length < 3) { toast('Need at least 3 tags'); return; }
+
+    const prompt = `You are a semantic positioning engine for a personal note-taking app.
+Tags may be Danish, English, or mixed — group by meaning, not language.
+Assign each tag [x, y] coordinates between -1 and 1. Place semantically similar tags close together.
+Also identify 4–7 thematic clusters.
+
+Tags: ${tagList.join(', ')}
+
+Respond with ONLY this raw JSON (no markdown fences, no explanation):
+{
+  "coords": {"tagname": [x, y], ...},
+  "clusters": [{"label": "Name", "cx": 0.0, "cy": 0.0}, ...]
+}`;
+
+    let text;
+    if (settings.aiProvider === 'gemini') {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel()}:generateContent?key=${aiKey()}`,
+        { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192}}) });
+      if (!r.ok) throw new Error(`Gemini ${r.status}: ${r.statusText}`);
+      const d = await r.json(); text = d.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error('Empty response from Gemini');
+    } else if (settings.aiProvider === 'openai') {
+      const r = await fetch('https://api.openai.com/v1/chat/completions',
+        { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${aiKey()}`}, body:JSON.stringify({model:aiModel(),max_tokens:8192,messages:[{role:'user',content:prompt}]}) });
+      if (!r.ok) throw new Error(`OpenAI ${r.status}: ${r.statusText}`);
+      const d = await r.json(); text = d.choices?.[0]?.message?.content;
+      if (!text) throw new Error('Empty response from OpenAI');
+    } else {
+      const r = await fetch('https://api.anthropic.com/v1/messages',
+        { method:'POST', headers:{'Content-Type':'application/json','x-api-key':aiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+          body:JSON.stringify({model:aiModel(),max_tokens:8192,messages:[{role:'user',content:prompt}]}) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(`Claude ${r.status}: ${d?.error?.message||r.statusText}`);
+      text = d.content?.[0]?.text;
+      if (!text) throw new Error(`Unexpected response: ${JSON.stringify(d).slice(0,200)}`);
+    }
+
+    console.log('[semantic] raw:', text.slice(0,500));
+    settings._semanticCoords = extractJsonObject(text);
+    saveSettingsNow();
+    if (regen) regen.style.display = '';
+    buildSemanticGraph();
+  } catch(e) {
+    console.error('[semantic]', e);
+    tcShowLoading('Generation failed: ' + e.message + '\n\nSee browser console for details.');
+    toast('Semantic map failed: ' + e.message);
+  } finally {
+    if (btn)   { btn.disabled=false;   btn.textContent='Generate map'; }
+    if (regen) { regen.disabled=false; regen.textContent='Refresh'; }
+  }
+}
 
 initSettingsControls();
 if (initAuth()) {

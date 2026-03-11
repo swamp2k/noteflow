@@ -256,6 +256,21 @@ export default {
         return json({ tags: results.map(r => r.tag) }, 200, origin);
       }
 
+      // ── GET /api/tags/graph ─────────────────────────────────────────────────
+      if (path === '/api/tags/graph' && method === 'GET') {
+        const { results: tags } = await env.DB.prepare(
+          'SELECT tag, COUNT(DISTINCT note_id) as count FROM note_tags WHERE user_id = ? GROUP BY tag ORDER BY count DESC'
+        ).bind(userId).all();
+        const { results: edges } = await env.DB.prepare(
+          `SELECT a.tag as source, b.tag as target, COUNT(*) as weight
+           FROM note_tags a JOIN note_tags b ON a.note_id = b.note_id AND a.tag < b.tag
+           WHERE a.user_id = ?
+           GROUP BY a.tag, b.tag HAVING weight >= 2
+           ORDER BY weight DESC LIMIT 500`
+        ).bind(userId).all();
+        return json({ tags, edges }, 200, origin);
+      }
+
       // ── GET /api/notes ──────────────────────────────────────────────────────
       if (path === '/api/notes' && method === 'GET') {
         const pageSize  = Math.min(parseInt(url.searchParams.get('pageSize') || '20'), 100);
