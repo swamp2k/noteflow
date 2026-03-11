@@ -122,6 +122,16 @@ async function ensureUser(db, claims) {
   return id;
 }
 
+async function ensureTagEmbeddingsTable(db) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS tag_embeddings (
+    user_id    TEXT NOT NULL,
+    tag        TEXT NOT NULL,
+    vector     TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, tag)
+  )`).run();
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 export default {
   async fetch(request, env, ctx) {
@@ -269,6 +279,56 @@ export default {
            ORDER BY weight DESC LIMIT 500`
         ).bind(userId).all();
         return json({ tags, edges }, 200, origin);
+      }
+
+      // ── GET /api/tags/embeddings/status ────────────────────────────────────
+      if (path === '/api/tags/embeddings/status' && method === 'GET') {
+        await ensureTagEmbeddingsTable(env.DB);
+        const { results: allTags } = await env.DB.prepare(
+          'SELECT DISTINCT tag FROM note_tags WHERE user_id = ?'
+        ).bind(userId).all();
+        const { results: indexed } = await env.DB.prepare(
+          'SELECT tag FROM tag_embeddings WHERE user_id = ?'
+        ).bind(userId).all();
+        const indexedSet = new Set(indexed.map(r => r.tag));
+        const missing = allTags.map(r => r.tag).filter(t => !indexedSet.has(t));
+        return json({ total: allTags.length, indexed: indexed.length, missing }, 200, origin);
+      }
+
+      // ── GET /api/tags/embeddings ────────────────────────────────────────────
+      if (path === '/api/tags/embeddings' && method === 'GET') {
+        await ensureTagEmbeddingsTable(env.DB);
+        const { results } = await env.DB.prepare(
+          'SELECT tag, vector FROM tag_embeddings WHERE user_id = ?'
+        ).bind(userId).all();
+        return json({ embeddings: results }, 200, origin);
+      }
+
+      // ── PUT /api/tags/embeddings ────────────────────────────────────────────
+      if (path === '/api/tags/embeddings' && method === 'PUT') {
+        await ensureTagEmbeddingsTable(env.DB);
+        const { embeddings } = await request.json();
+        if (!Array.isArray(embeddings) || embeddings.length === 0)
+          return json({ ok: true, count: 0 }, 200, origin);
+        const now = Math.floor(Date.now() / 1000);
+        // D1 batch — upsert in chunks of 50
+        const CHUNK = 50;
+        for (let i = 0; i < embeddings.length; i += CHUNK) {
+          const stmts = embeddings.slice(i, i + CHUNK).map(({ tag, vector }) =>
+            env.DB.prepare(
+              'INSERT OR REPLACE INTO tag_embeddings (user_id, tag, vector, created_at) VALUES (?, ?, ?, ?)'
+            ).bind(userId, tag, typeof vector === 'string' ? vector : JSON.stringify(vector), now)
+          );
+          await env.DB.batch(stmts);
+        }
+        return json({ ok: true, count: embeddings.length }, 200, origin);
+      }
+
+      // ── DELETE /api/tags/embeddings ─────────────────────────────────────────
+      if (path === '/api/tags/embeddings' && method === 'DELETE') {
+        await ensureTagEmbeddingsTable(env.DB);
+        await env.DB.prepare('DELETE FROM tag_embeddings WHERE user_id = ?').bind(userId).run();
+        return json({ ok: true }, 200, origin);
       }
 
       // ── GET /api/notes ──────────────────────────────────────────────────────
