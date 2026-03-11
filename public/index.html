@@ -4081,7 +4081,7 @@ function renderEmbeddingResults(results) {
   const maxScore = results[0].score || 1;
   resultsEl.innerHTML = results.map(({ tag, score, count }, i) => {
     const pct = (score / maxScore * 100).toFixed(1);
-    return `<div class="tc-embed-result" onclick="tcFilterByEmbedTag(${JSON.stringify(tag)})">
+    return `<div class="tc-embed-result" data-tag="${tag.replace(/"/g,'&quot;')}" style="cursor:pointer">
       <div class="tc-embed-result-rank">${i+1}</div>
       <div class="tc-embed-result-tag">#${tag}</div>
       <div class="tc-embed-result-bar-wrap"><div class="tc-embed-result-bar" style="width:${pct}%"></div></div>
@@ -4090,6 +4090,11 @@ function renderEmbeddingResults(results) {
     </div>`;
   }).join('');
 }
+
+document.getElementById('tc-embed-results').addEventListener('click', e => {
+  const row = e.target.closest('[data-tag]');
+  if (row) tcFilterByEmbedTag(row.dataset.tag);
+});
 
 function tcFilterByEmbedTag(tag) {
   setTcMode('network');
