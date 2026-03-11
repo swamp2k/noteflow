@@ -3810,7 +3810,8 @@ async function generateSemanticMap() {
 
   try {
     if (!tagGraphData) tagGraphData = await apiGet('/tags/graph');
-    const tagList = (tagGraphData.tags||[]).filter(t=>!SPECIAL_TAGS.includes(t.tag)).map(t=>t.tag);
+    // Tags are sorted by note count DESC — cap at 80 to stay within token limits
+    const tagList = (tagGraphData.tags||[]).filter(t=>!SPECIAL_TAGS.includes(t.tag)).slice(0,80).map(t=>t.tag);
     if (tagList.length < 3) { toast('Need at least 3 tags'); return; }
 
     const prompt = `You are a semantic positioning engine for a personal note-taking app.
