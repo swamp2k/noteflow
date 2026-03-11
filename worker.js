@@ -281,6 +281,34 @@ export default {
         return json({ tags, edges }, 200, origin);
       }
 
+      // ── POST /api/tags/contexts — note snippets per tag for enriched embedding
+      if (path === '/api/tags/contexts' && method === 'POST') {
+        const { tags } = await request.json();
+        if (!Array.isArray(tags) || tags.length === 0) return json({}, 200, origin);
+        const contextMap = {};
+        // D1 limit: 100 bound params per statement; userId takes 1, so 80 tags/batch is safe
+        const BATCH = 80;
+        for (let i = 0; i < tags.length; i += BATCH) {
+          const batch = tags.slice(i, i + BATCH);
+          const ph = batch.map(() => '?').join(',');
+          const { results } = await env.DB.prepare(
+            `SELECT nt.tag, SUBSTR(n.content, 1, 200) as snippet
+             FROM note_tags nt JOIN notes n ON nt.note_id = n.id
+             WHERE nt.user_id = ? AND nt.tag IN (${ph})
+               AND n.content IS NOT NULL AND LENGTH(n.content) > 15
+             ORDER BY n.created_at DESC`
+          ).bind(userId, ...batch).all();
+          for (const row of results) {
+            if (!contextMap[row.tag]) contextMap[row.tag] = [];
+            if (contextMap[row.tag].length < 3) {
+              const snippet = row.snippet.replace(/[#*`\[\]]/g, '').replace(/\s+/g, ' ').trim();
+              if (snippet.length > 15) contextMap[row.tag].push(snippet);
+            }
+          }
+        }
+        return json(contextMap, 200, origin);
+      }
+
       // ── GET /api/tags/embeddings/status ────────────────────────────────────
       if (path === '/api/tags/embeddings/status' && method === 'GET') {
         await ensureTagEmbeddingsTable(env.DB);

@@ -4052,13 +4052,27 @@ async function tcIndexTags() {
       indexBtn.style.display = 'none';
       return;
     }
+    // Fetch note snippets to enrich each tag before embedding
+    // e.g. "tag: mazda\nmazda cx-5 service 2023\nmazda forsikring" gives the model real context
+    indexBtn.textContent = 'Fetching note contexts…';
+    const contexts = await fetch(API_BASE + '/tags/contexts', {
+      method: 'POST', credentials: 'omit',
+      headers: authHeaders(),
+      body: JSON.stringify({ tags: missing })
+    }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+
     // Voyage supports up to 1000 inputs per request — embed all missing tags at once
     const BATCH = 1000;
     let done = 0;
     for (let i = 0; i < missing.length; i += BATCH) {
       const batch = missing.slice(i, i + BATCH);
       indexBtn.textContent = `Indexing… ${batch.length} tags`;
-      const vectors = await voyageEmbed(batch, 'document');
+      // Build enriched strings: "tag: {name}\n{snippet1}\n{snippet2}"
+      const enriched = batch.map(tag => {
+        const snippets = contexts[tag];
+        return snippets?.length ? `tag: ${tag}\n${snippets.join('\n')}` : `tag: ${tag}`;
+      });
+      const vectors = await voyageEmbed(enriched, 'document');
       const embeddings = batch.map((tag, j) => ({ tag, vector: vectors[j] }));
       await fetch(API_BASE + '/tags/embeddings', {
         method: 'PUT', credentials: 'omit',
