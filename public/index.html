@@ -758,6 +758,44 @@
   .tc-embed-result-bar { height: 100%; border-radius: 3px; background: var(--accent); }
   .tc-embed-result-score { font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; min-width: 44px; text-align: right; }
   .tc-embed-result-count { font-size: 12px; color: var(--text-soft); min-width: 55px; text-align: right; }
+  .tc-embed-graph-btn {
+    flex-shrink: 0; padding: 3px 8px; font-size: 13px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text-soft); border-radius: 6px; cursor: pointer;
+    transition: all 0.15s; line-height: 1;
+  }
+  .tc-embed-graph-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* Ego graph banner */
+  .tc-ego-banner {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    background: rgba(13,15,18,0.85); border: 1px solid #252b35; border-radius: 8px;
+    padding: 6px 14px; font-size: 12px; color: #8a8880; white-space: nowrap;
+    font-family: 'IBM Plex Mono', monospace; z-index: 5; pointer-events: auto;
+  }
+  .tc-ego-banner b { color: #4a9e72; }
+  .tc-ego-banner button { background: none; border: none; color: #5b9bd5; cursor: pointer; font-size: 12px; margin-left: 8px; }
+  /* Surprise me */
+  .tc-surprise-btn {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 2px 9px; font-size: 12px; color: var(--accent); cursor: pointer;
+    font-family: var(--font-body); transition: all 0.15s;
+  }
+  .tc-surprise-btn:hover { background: var(--accent-bg); }
+  /* Cluster cards */
+  .tc-cluster-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 6px;
+  }
+  .tc-cluster-header {
+    font-size: 13px; font-weight: 600; margin-bottom: 9px;
+    display: flex; align-items: center;
+  }
+  .tc-cluster-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+  .tc-cluster-tag {
+    font-size: 12px; padding: 3px 9px; border-radius: 20px;
+    border: 1px solid; cursor: pointer; transition: opacity 0.15s;
+    background: transparent;
+  }
+  .tc-cluster-tag:hover { opacity: 0.7; }
   /* SVG node/link styles */
   .tc-link { stroke: rgba(255,255,255,0.06); stroke-width: 1; fill: none; }
   .tc-link-strong { stroke: rgba(74,158,114,0.22); stroke-width: 1.5; }
@@ -1267,7 +1305,7 @@
         <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.35;flex-shrink:0"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3.5 3.5"/></svg>
         <input id="tc-embed-search" placeholder="Search tags by meaning… e.g. "server maintenance" or "family"" autocomplete="off">
       </div>
-      <div class="tc-embed-hint" id="tc-embed-hint">Type a concept above to find semantically related tags.</div>
+      <div class="tc-embed-hint" id="tc-embed-hint">Type a concept above to find semantically related tags, or try <button class="tc-surprise-btn" onclick="tcSurpriseMe()">✦ Surprise me</button></div>
       <div class="tc-embed-results" id="tc-embed-results"></div>
     </div>
   </div>
@@ -3514,6 +3552,7 @@ let tcSvg         = null;
 let tcZoomBeh     = null;
 let tcGMain       = null;
 let tcNotesCache  = null;
+let tcEgoData     = null; // {tags, edges, center} — set when showing ego subgraph
 
 document.getElementById('tc-btn-network').addEventListener('click',    () => setTcMode('network'));
 document.getElementById('tc-btn-semantic').addEventListener('click',   () => setTcMode('semantic'));
@@ -3537,7 +3576,7 @@ function setTcMode(mode) {
   if (isEmbed) {
     loadEmbeddingsView();
   } else if (tagGraphData) {
-    if (mode === 'network') buildForceGraph();
+    if (mode === 'network') { tcEgoData = null; buildForceGraph(); }
     else buildSemanticGraph();
   }
 }
@@ -3616,21 +3655,36 @@ function buildForceGraph() {
   const wrap = document.getElementById('tc-canvas-wrap');
   const W = wrap.clientWidth, H = wrap.clientHeight;
 
-  const rawTags = (tagGraphData.tags || []).filter(t => !SPECIAL_TAGS.includes(t.tag));
+  const isEgo   = !!tcEgoData;
+  const srcTags  = isEgo ? tcEgoData.tags  : (tagGraphData.tags  || []);
+  const srcEdges = isEgo ? tcEgoData.edges : (tagGraphData.edges || []);
+  const egoCenter = tcEgoData?.center;
+
+  // Show/hide ego banner
+  let banner = wrap.querySelector('.tc-ego-banner');
+  if (isEgo) {
+    if (!banner) { banner = document.createElement('div'); banner.className='tc-ego-banner'; wrap.appendChild(banner); }
+    banner.innerHTML = `Ego graph: <b>#${egoCenter}</b> + top 9 semantic neighbors &nbsp;<button onclick="tcClearEgo()">Show full graph</button>`;
+  } else if (banner) { banner.remove(); }
+
+  const rawTags = srcTags.filter(t => !SPECIAL_TAGS.includes(t.tag));
   const maxCount = Math.max(...rawTags.map(t => t.count), 1);
   const nodeR = d => d.type === 'tag' ? Math.max(7, Math.sqrt(d.count / maxCount) * 28 + 7) : 5;
 
-  const tagNodes = rawTags.map(t => ({ id:'tag-'+t.tag, type:'tag', label:t.tag, count:t.count }));
-  const noteNodes = (tcNotesCache || []).slice(0, 200).map(n => ({ id:'note-'+n.id, type:'note', note:n }));
+  const tagNodes = rawTags.map(t => ({
+    id:'tag-'+t.tag, type:'tag', label:t.tag, count:t.count,
+    isCenter: t.tag === egoCenter
+  }));
+  const noteNodes = isEgo ? [] : (tcNotesCache || []).slice(0, 200).map(n => ({ id:'note-'+n.id, type:'note', note:n }));
   const nodes = [...tagNodes, ...noteNodes];
   const nodeIds = new Set(nodes.map(n => n.id));
 
   const noteLinks = noteNodes.flatMap(n =>
     (n.note.tags || []).filter(t => nodeIds.has('tag-'+t)).map(t => ({ source:'tag-'+t, target:n.id, strength:'weak' }))
   );
-  const tagLinks = (tagGraphData.edges || [])
-    .filter(e => nodeIds.has('tag-'+e.source) && nodeIds.has('tag-'+e.target))
-    .map(e => ({ source:'tag-'+e.source, target:'tag-'+e.target, strength: e.weight > 3 ? 'strong' : 'weak', weight: e.weight }));
+  const tagLinks = srcEdges
+    .filter(e => nodeIds.has('tag-'+(e.source?.tag||e.source)) && nodeIds.has('tag-'+(e.target?.tag||e.target)))
+    .map(e => ({ source:'tag-'+(e.source?.tag||e.source), target:'tag-'+(e.target?.tag||e.target), strength: e.weight > 3 ? 'strong' : 'weak', weight: e.weight }));
   const links = [...tagLinks, ...noteLinks];
 
   const linkSel = tcGMain.append('g').selectAll('line').data(links).join('line')
@@ -3648,9 +3702,9 @@ function buildForceGraph() {
 
   nodeSel.append('circle')
     .attr('r', nodeR)
-    .attr('fill', d => d.type === 'tag' ? '#5b9bd5' : '#9b7fd4')
+    .attr('fill', d => d.isCenter ? '#4a9e72' : (d.type === 'tag' ? '#5b9bd5' : '#9b7fd4'))
     .attr('opacity', d => d.type === 'tag' ? 0.9 : 0.65)
-    .attr('filter', d => d.type === 'tag' ? 'url(#tc-glow-tag)' : 'url(#tc-glow-note)');
+    .attr('filter', d => d.isCenter ? 'url(#tc-glow-sel)' : (d.type === 'tag' ? 'url(#tc-glow-tag)' : 'url(#tc-glow-note)'));
 
   nodeSel.filter(d => d.type === 'tag').append('circle')
     .attr('r', d => nodeR(d) + 4).attr('fill','none')
@@ -4074,32 +4128,189 @@ async function tcSearchEmbeddings(query) {
   }
 }
 
-function renderEmbeddingResults(results) {
+function renderEmbeddingResults(results, headline) {
   const resultsEl = document.getElementById('tc-embed-results');
+  const hintEl    = document.getElementById('tc-embed-hint');
   if (!resultsEl) return;
   if (results.length === 0) { resultsEl.innerHTML = ''; return; }
+  if (hintEl) hintEl.style.display = 'none';
   const maxScore = results[0].score || 1;
-  resultsEl.innerHTML = results.map(({ tag, score, count }, i) => {
+  const headHtml = headline ? `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;font-family:'IBM Plex Mono',monospace">${headline}</div>` : '';
+  resultsEl.innerHTML = headHtml + results.map(({ tag, score, count }, i) => {
     const pct = (score / maxScore * 100).toFixed(1);
-    return `<div class="tc-embed-result" data-tag="${tag.replace(/"/g,'&quot;')}" style="cursor:pointer">
+    const safeTag = tag.replace(/"/g,'&quot;');
+    return `<div class="tc-embed-result" data-tag="${safeTag}">
       <div class="tc-embed-result-rank">${i+1}</div>
       <div class="tc-embed-result-tag">#${tag}</div>
       <div class="tc-embed-result-bar-wrap"><div class="tc-embed-result-bar" style="width:${pct}%"></div></div>
       <div class="tc-embed-result-score">${score.toFixed(3)}</div>
       <div class="tc-embed-result-count">${count} note${count !== 1 ? 's' : ''}</div>
+      <button class="tc-embed-graph-btn" data-tag="${safeTag}" title="Show ego graph">⊛</button>
     </div>`;
   }).join('');
 }
 
 document.getElementById('tc-embed-results').addEventListener('click', e => {
+  // "Show in graph" button → ego graph
+  const graphBtn = e.target.closest('.tc-embed-graph-btn');
+  if (graphBtn) { buildEgoGraph(graphBtn.dataset.tag); return; }
+  // Row click → hop to that tag (re-search from it)
   const row = e.target.closest('[data-tag]');
-  if (row) tcFilterByEmbedTag(row.dataset.tag);
+  if (!row) return;
+  const tag = row.dataset.tag;
+  const searchEl = document.getElementById('tc-embed-search');
+  if (searchEl) searchEl.value = tag;
+  tcSearchEmbeddings(tag);
 });
 
-function tcFilterByEmbedTag(tag) {
+// ── Ego graph — focused subgraph around one tag ───────────────────────────────
+async function buildEgoGraph(centralTag) {
+  if (!tcEmbeddingVectors || !tcEmbeddingVectors[centralTag]) {
+    toast('Tag not yet indexed — run Index tags first'); return;
+  }
+  // Ensure graph data and D3 are loaded
+  if (!tagGraphData) await loadTagCloud();
+  const centralVec = tcEmbeddingVectors[centralTag];
+  const tagCountMap = {};
+  (tagGraphData?.tags || []).forEach(t => { tagCountMap[t.tag] = t.count; });
+
+  // Top 9 semantic neighbors
+  const neighbors = Object.entries(tcEmbeddingVectors)
+    .filter(([t]) => t !== centralTag)
+    .map(([t, v]) => ({ tag: t, score: cosineSimilarity(centralVec, v) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 9);
+
+  const egoTags = [centralTag, ...neighbors.map(n => n.tag)];
+  const egoNodes = egoTags.map(tag => ({ tag, count: tagCountMap[tag] || 1 }));
+
+  // Semantic edges: center→all neighbors always; neighbor↔neighbor if sim > 0.6
+  const edges = [];
+  for (let i = 0; i < egoTags.length; i++) {
+    for (let j = i + 1; j < egoTags.length; j++) {
+      const a = egoTags[i], b = egoTags[j];
+      const sim = cosineSimilarity(tcEmbeddingVectors[a], tcEmbeddingVectors[b]);
+      if (i === 0 || sim > 0.60) {
+        edges.push({ source: a, target: b, weight: Math.round(sim * 10) });
+      }
+    }
+  }
+
+  tcEgoData = { tags: egoNodes, edges, center: centralTag };
   setTcMode('network');
-  const searchEl = document.getElementById('tc-search');
-  if (searchEl) { searchEl.value = tag; tcFilterNodes(tag); }
+  if (tcSvg) buildForceGraph();
+  else loadTagCloud();
+}
+
+function tcClearEgo() {
+  tcEgoData = null;
+  if (tcSvg) buildForceGraph();
+  else loadTagCloud();
+}
+
+// ── Surprise me — k-means clustering on embedding vectors ─────────────────────
+function kMeans(vectors, k, iterations = 50) {
+  const tags = Object.keys(vectors);
+  const vecs = tags.map(t => vectors[t]);
+  const dim  = vecs[0].length;
+
+  // k-means++ initialisation
+  const centroids = [vecs[Math.floor(Math.random() * vecs.length)].slice()];
+  while (centroids.length < k) {
+    const dists = vecs.map(v => Math.min(...centroids.map(c => {
+      let d = 0; for (let i = 0; i < dim; i++) d += (v[i]-c[i])**2; return d;
+    })));
+    const sum = dists.reduce((a,b) => a+b, 0);
+    let r = Math.random() * sum;
+    for (let i = 0; i < dists.length; i++) { r -= dists[i]; if (r <= 0) { centroids.push(vecs[i].slice()); break; } }
+  }
+
+  let assignments = new Array(tags.length).fill(0);
+  for (let iter = 0; iter < iterations; iter++) {
+    // Assign
+    assignments = vecs.map(v => {
+      let best = 0, bestD = Infinity;
+      for (let c = 0; c < k; c++) {
+        let d = 0; for (let i = 0; i < dim; i++) d += (v[i]-centroids[c][i])**2;
+        if (d < bestD) { bestD = d; best = c; }
+      }
+      return best;
+    });
+    // Update centroids
+    for (let c = 0; c < k; c++) {
+      const members = assignments.reduce((a, asgn, i) => asgn === c ? [...a, vecs[i]] : a, []);
+      if (!members.length) continue;
+      for (let i = 0; i < dim; i++) centroids[c][i] = members.reduce((s, v) => s + v[i], 0) / members.length;
+    }
+  }
+
+  // Group tags by cluster; name each by the tag closest to its centroid
+  const clusters = Array.from({length: k}, (_, c) => {
+    const members = tags.filter((_, i) => assignments[i] === c);
+    const centroid = centroids[c];
+    const label = members.reduce((best, tag) => {
+      const v = vectors[tag];
+      let d = 0; for (let i = 0; i < dim; i++) d += (v[i]-centroid[i])**2;
+      const bv = vectors[best];
+      let bd = 0; for (let i = 0; i < dim; i++) bd += (bv[i]-centroid[i])**2;
+      return d < bd ? tag : best;
+    }, members[0]);
+    return { label, members };
+  }).filter(c => c.members.length > 0)
+    .sort((a, b) => b.members.length - a.members.length);
+
+  return clusters;
+}
+
+const CLUSTER_COLORS = ['#5b9bd5','#4a9e72','#c49a3c','#9b7fd4','#c2405a','#1a7fa8','#56c4a0','#c17f3e'];
+
+function tcSurpriseMe() {
+  const resultsEl = document.getElementById('tc-embed-results');
+  const hintEl    = document.getElementById('tc-embed-hint');
+  const searchEl  = document.getElementById('tc-embed-search');
+  if (!tcEmbeddingVectors || Object.keys(tcEmbeddingVectors).length < 6) {
+    toast('Index tags first, then try Surprise me'); return;
+  }
+  if (searchEl) searchEl.value = '';
+  if (hintEl)   hintEl.style.display = 'none';
+
+  const filtered = Object.fromEntries(
+    Object.entries(tcEmbeddingVectors).filter(([t]) => !SPECIAL_TAGS.includes(t))
+  );
+  const n = Object.keys(filtered).length;
+  const k = Math.min(8, Math.max(4, Math.round(Math.sqrt(n / 2))));
+  const tagCounts = {};
+  (tagGraphData?.tags || []).forEach(t => { tagCounts[t.tag] = t.count; });
+
+  const clusters = kMeans(filtered, k);
+
+  resultsEl.innerHTML = `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:12px;font-family:'IBM Plex Mono',monospace">
+    Auto-discovered ${clusters.length} clusters from ${n} tags
+  </div>` + clusters.map((cl, ci) => {
+    const color = CLUSTER_COLORS[ci % CLUSTER_COLORS.length];
+    const memberHtml = cl.members
+      .sort((a,b) => (tagCounts[b]||0) - (tagCounts[a]||0))
+      .map(tag => {
+        const safe = tag.replace(/"/g,'&quot;');
+        return `<span class="tc-cluster-tag" data-tag="${safe}" style="border-color:${color}33;color:${color}">#${tag}</span>`;
+      }).join('');
+    return `<div class="tc-cluster-card">
+      <div class="tc-cluster-header" style="color:${color}">
+        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;margin-right:6px"></span>
+        ${cl.label}
+        <span style="font-size:11px;opacity:0.6;margin-left:6px">${cl.members.length} tags</span>
+      </div>
+      <div class="tc-cluster-tags">${memberHtml}</div>
+    </div>`;
+  }).join('');
+
+  // Tag clicks → search from that tag
+  resultsEl.querySelectorAll('.tc-cluster-tag').forEach(el => {
+    el.addEventListener('click', () => {
+      if (searchEl) searchEl.value = el.dataset.tag;
+      tcSearchEmbeddings(el.dataset.tag);
+    });
+  });
 }
 
 initSettingsControls();
