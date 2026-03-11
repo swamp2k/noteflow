@@ -255,6 +255,8 @@
   .memo-card.starred { border-left: 3px solid var(--star); }
   .memo-card.hidden-note { border-left: 3px solid var(--hidden-border); background: var(--hidden-bg); }
   .memo-card.pinned { border-top: 2px solid var(--accent); }
+  @keyframes tc-note-flash { 0%,100% { box-shadow: var(--shadow); } 30% { box-shadow: 0 0 0 3px var(--accent); } }
+  .memo-card.tc-highlight { animation: tc-note-flash 1.4s ease; }
 
   .card-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -3909,7 +3911,7 @@ async function tcShowDetail(d) {
         <div class="tc-dp-stat"><span>Related tags</span><span>${related.length}</span></div>
         ${related.length ? `<div class="tc-dp-section">Connected tags</div><div style="margin-bottom:12px">${related.slice(0,14).map(t=>`<span class="tc-dp-tag" onclick="tcFocusTag('${t}')">#${t}</span>`).join('')}</div>` : ''}
         <div class="tc-dp-section">Notes</div>
-        ${notes.map(n=>`<div class="tc-dp-note" onclick="tcOpenNote('${n.id}','${d.label}')">
+        ${notes.map(n=>`<div class="tc-dp-note" onclick="tcOpenNote('${n.id}')">
           <div class="tc-dp-note-text">${(n.content||'').replace(/<[^>]+>/g,'').slice(0,120)}</div>
           <div class="tc-dp-note-tags">${(n.tags||[]).filter(t=>!SPECIAL_TAGS.includes(t)).map(t=>`<span class="tc-dp-mini-tag">#${t}</span>`).join('')}</div>
           <div class="tc-dp-note-time">${new Date(n.created_at).toLocaleDateString()}</div>
@@ -3926,7 +3928,7 @@ async function tcShowDetail(d) {
       <div class="tc-dp-stat"><span>Tags</span><span>${visibleTags.length}</span></div>
       <div style="background:rgba(255,255,255,0.04);border:1px solid #1a1e25;border-radius:8px;padding:11px;margin:10px 0;font-size:12px;line-height:1.6;color:rgba(232,228,220,0.9)">${preview.slice(0,400)}${preview.length>400?'…':''}</div>
       <div style="margin-bottom:10px">${visibleTags.map(t=>`<span class="tc-dp-tag" onclick="tcFocusTag('${t}')">#${t}</span>`).join('')}</div>
-      <button class="tc-dp-open-btn" onclick="tcOpenNote('${n.id}','')">Open note →</button>`;
+      <button class="tc-dp-open-btn" onclick="tcOpenNote('${n.id}')">Open note →</button>`;
   }
 }
 
@@ -3942,9 +3944,41 @@ function tcFocusTag(tag) {
   });
 }
 
-function tcOpenNote(noteId, tag) {
-  if (tag) { searchQuery = tag; const si = document.getElementById('search-input'); if (si) { si.value = tag; document.getElementById('search-clear')?.classList.add('visible'); } }
+async function tcOpenNote(noteId) {
+  // Clear any search state
+  searchResults = null;
+  searchQuery = '';
+  const si = document.getElementById('search-input');
+  if (si) { si.value = ''; document.getElementById('search-clear')?.classList.remove('visible'); }
+
   switchView('all');
+
+  // Give the feed a moment to render, then find or fetch the card
+  await new Promise(r => setTimeout(r, 80));
+
+  async function scrollToCard() {
+    const card = document.querySelector(`[data-memo-name="${noteId}"]`);
+    if (!card) return false;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.add('tc-highlight');
+    setTimeout(() => card.classList.remove('tc-highlight'), 1500);
+    return true;
+  }
+
+  if (await scrollToCard()) return;
+
+  // Note not currently in the feed — fetch it and prepend
+  try {
+    const data = await apiGet(`/notes/${noteId}`);
+    if (data.note) {
+      allMemos = [data.note, ...allMemos.filter(m => m.id !== noteId)];
+      renderFeed();
+      await new Promise(r => setTimeout(r, 60));
+      await scrollToCard();
+    }
+  } catch(e) {
+    toast('Could not open note');
+  }
 }
 
 function tcFilterNodes(q) {
