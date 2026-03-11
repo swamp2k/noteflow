@@ -2091,18 +2091,13 @@ function renderFeed(appendMode = false) {
 
   // Server search results override the normal feed
   if (searchResults !== null) {
-    const visible = searchResults;
-    if (visible.length === 0) {
+    feed.innerHTML = '';
+    const lm = document.getElementById('load-more'); if (lm) lm.style.display = 'none';
+    if (searchResults.length === 0) {
       feed.innerHTML = '<div class="empty-state">No notes found.</div>';
-      const lm = document.getElementById('load-more'); if (lm) lm.style.display = 'none';
       return;
     }
-    if (!appendMode) feed.innerHTML = '';
-    const rendered = new Set([...feed.querySelectorAll('[data-memo-id]')].map(el => el.dataset.memoId));
-    for (const memo of visible) {
-      if (!rendered.has(memo.id)) feed.appendChild(buildMemoCard(memo));
-    }
-    const lm = document.getElementById('load-more'); if (lm) lm.style.display = 'none';
+    searchResults.forEach(memo => feed.appendChild(buildCard(memo)));
     return;
   }
 
