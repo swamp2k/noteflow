@@ -730,6 +730,21 @@ export default {
           }
         }
 
+        // Attach attachment metadata (same pattern as GET /api/notes)
+        if (merged.length > 0) {
+          const ids = merged.map(n => n.id);
+          const ph = ids.map(() => '?').join(',');
+          const { results: atts } = await env.DB.prepare(
+            `SELECT * FROM attachments WHERE note_id IN (${ph})`
+          ).bind(...ids).all();
+          const attMap = {};
+          for (const a of atts) {
+            if (!attMap[a.note_id]) attMap[a.note_id] = [];
+            attMap[a.note_id].push(a);
+          }
+          for (const n of merged) n.attachments = attMap[n.id] || [];
+        }
+
         return json({ notes: merged }, 200, origin);
       }
 
